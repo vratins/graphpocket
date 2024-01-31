@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ -z "$STRUCTURE_DIR" ]; then
+if [ -z "$STRUCTURE_DATA_DIR" ]; then
   echo "STRUCTURE_DIR not set"
   exit
 fi
