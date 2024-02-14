@@ -1,3 +1,7 @@
+"""
+Script to process atom-based pockets obtained from fpocket and convert to residue-based pockets
+"""
+
 import warnings
 import os
 import shutil
@@ -47,14 +51,14 @@ def check_and_create_dir(directory):
 def copy_file(source, destination):
     shutil.copy(source, destination)
 
-def process_pockets(list_of_tuples, input_dir, output_dir):
+def process_pockets(pocket_list, input_dir, output_dir):
     if not os.path.exists(input_dir):
         raise FileNotFoundError(f"Input directory {input_dir} does not exist.")
 
     check_and_create_dir(output_dir)
 
     #iterate of the list of pockets provided by tough-m1
-    for pdb, number in tqdm(list_of_tuples):
+    for pdb, number in tqdm(pocket_list):
         pdb_path = os.path.join(input_dir, str(pdb))
         pocket_path = os.path.join(pdb_path, f"{pdb}_out/pockets", f"pocket{number-1}_atm.pdb")
         pdb_file = os.path.join(pdb_path, f"{pdb}.pdb")
