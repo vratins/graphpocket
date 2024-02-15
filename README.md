@@ -3,9 +3,11 @@ Predicting protein binding pocket similarity using graph neural networks.
 
 Code to write:
 
-- processing.py --> processing tough-m1 pockets to one hot encoded complex graphs
-- model.py --> GVP implementation
-- loss.py --> contrastive loss function (think of euclidean or RBF)
-- train.py
-- test.py
-- scheduler? 
+- processing fpocket to residue pockets -- done
+- generating graphs with each node one-hot encoded
+- building a dataloader for all the graphs (batch them? tuple them)
+- build gvp
+- build gcn
+- write loss function (contrastive and stability)
+- see what scheduling and optimization is needed
+- write train.py (with testing) --- dont forget to log runs with wandb
