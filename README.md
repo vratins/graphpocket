@@ -12,7 +12,8 @@ Code to write:
 - see what scheduling and optimization is needed
 - write train.py (with testing) --- dont forget to log runs with wandb
 
-- How do I want to structure it:
+
+How do I want to structure it:
 
 - Class to read in the sturctures from a directory
 - Class/script to featurize the pockets
