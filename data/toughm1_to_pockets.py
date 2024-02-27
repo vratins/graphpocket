@@ -78,7 +78,8 @@ def process_pockets(pocket_list, input_dir, output_dir):
 
 pocket_list = []
 
-with open('../dataset_graph/TOUGH-M1/TOUGH-M1_pocket.list', 'r') as file:
+#add path as argument later
+with open('../../TOUGH-M1/TOUGH-M1_pocket.list', 'r') as file:
     for line in file:
         parts = line.strip().split()
         pdbid = parts[0]
@@ -86,4 +87,4 @@ with open('../dataset_graph/TOUGH-M1/TOUGH-M1_pocket.list', 'r') as file:
 
         pocket_list.append((pdbid, pocket_number))
 
-process_pockets(pocket_list, '../dataset_graph/TOUGH-M1/TOUGH-M1_dataset', 'data')
+process_pockets(pocket_list, '../../TOUGH-M1', 'data')
