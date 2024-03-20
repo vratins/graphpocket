@@ -11,8 +11,6 @@ class Unparsable(Exception):
 
 #processing code adapted from Ian Dunn: https://github.com/Dunni3/keypoint-diffusion/blob/main/data_processing/pdbbind_processing.py
 
-#graph class to read in pocket and compute pocket representation
-
 class GraphPocket:
 #callable class to read a pocket and output the graph
     
