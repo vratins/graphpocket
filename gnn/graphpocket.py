@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import dgl
 
+
 from typing import Iterable, Union, List, Dict
 
 class Unparsable(Exception):
@@ -17,16 +18,16 @@ class GraphPocket:
     def __init__(self):
 
         #hard code element map and k for graph
-        self.rec_elements = {'C': 0, 'N': 1, 'O': 2, 'S': 3}
+        self.rec_elements = {'C': 0, 'N': 1, 'O': 2, 'S': 3, 'other':4}
         self.threshold_k = 3
         self.algorithm = 'bruteforce-blas'
 
     def __call__(self, pocket_path):
 
         pocket = parse_pocket(pocket_path)
-        positions, features = get_pocket_atoms(pocket, self.rec_elements)
+        positions, features, residues = get_pocket_atoms(pocket, self.rec_elements)
 
-        graph = build_pocket_graph(positions, features, self.threshold_k, self.algorithm)
+        graph = build_pocket_graph(positions, features, residues, self.threshold_k, self.algorithm)
 
         return graph
         
@@ -46,17 +47,20 @@ def get_pocket_atoms(rec_atoms, element_map):
 
     #position, features and indices for all pocket atoms
     rec_atom_positions = rec_atoms.getCoords()
+    rec_res_indices = rec_atoms.getResindices()
     rec_atom_features, other_atoms_mask = receptor_featurizer(element_map=element_map, rec_atoms=rec_atoms)
 
     #convert positions and features to tensors
     rec_atom_positions = torch.tensor(rec_atom_positions).float()
     rec_atom_features = torch.tensor(rec_atom_features).float()
+    rec_res_indices = torch.tensor(rec_res_indices).float()
 
     # remove "other" atoms from the receptor
     rec_atom_positions = rec_atom_positions[~other_atoms_mask]
     rec_atom_features = rec_atom_features[~other_atoms_mask]
+    rec_res_indices = rec_res_indices[~other_atoms_mask]
 
-    return rec_atom_positions, rec_atom_features
+    return rec_atom_positions, rec_atom_features, rec_res_indices
 
 
 #function to featurize the receptor atoms
@@ -96,11 +100,16 @@ def one_hot_encode(atom_elements: Iterable, element_map: Dict[str, int]):
     return onehot_elements
 
 #function to build a graph from receptor atoms using dgl
-def build_pocket_graph(atom_positions: torch.Tensor, atom_features: torch.Tensor, k: int, edge_algorithm: str):
+def build_pocket_graph(atom_positions: torch.Tensor, atom_features: torch.Tensor, res_index: torch.Tensor, k: int, edge_algorithm: str):
     #add functionality for radius graphs too
 
     g = dgl.knn_graph(atom_positions, k=k, algorithm=edge_algorithm, dist='euclidean', exclude_self=True)
     g.ndata['x_0'] = atom_positions
     g.ndata['h_0'] = atom_features
+
+    source_nodes, destination_nodes = g.edges()
+    same_residue = res_index[source_nodes] == res_index[destination_nodes]
+    edge_feature = same_residue.float()
+    g.edata['same_residues'] = edge_feature.view(-1,1)
     
     return g
