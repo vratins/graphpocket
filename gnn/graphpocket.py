@@ -110,6 +110,6 @@ def build_pocket_graph(atom_positions: torch.Tensor, atom_features: torch.Tensor
     source_nodes, destination_nodes = g.edges()
     same_residue = res_index[source_nodes] == res_index[destination_nodes]
     edge_feature = same_residue.float()
-    g.edata['same_residues'] = edge_feature.view(-1,1)
+    g.edata['a'] = edge_feature.view(-1,1)
     
     return g
