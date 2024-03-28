@@ -1,25 +1,11 @@
 # graphpocket
-Predicting protein binding pocket similarity using graph neural networks.
+Predicting protein binding pocket similarity using the Geometric Vector Perceptron - GNN architecture (insert link)
 
-Code to write:
+- Config files: Model + Data + WandB parameters (+hyperparameter sweep ideas)
 
-- processing fpocket to residue pockets -- done
-- generating graphs with each node one-hot encoded
-- building a dataloader for all the graphs (batch them? tuple them)
-- build gvp
-- build gcn
-- write loss function (contrastive and stability)
-- see what scheduling and optimization is needed
-- write train.py (with testing) --- dont forget to log runs with wandb
-
-
-How do I want to structure it:
-
-- Class to read in the sturctures from a directory
-- Class/script to featurize the pockets
-    - features would be one-hot encoding (and maybe look at other features that may work like pharmacophoric properties; angles may not make sense when doing an all-atom encoding)
-- after featurizing the pocket - generate the graphs, batch them
-- gvp module that contains the network, forward pass, backprop -- also contains any code for convolution
-- loss file containing contrastive and stability loss
-- utils file to read in config and other similar functions
-- train file to load in data, hyperparameters, and subsequently train the model
+- General Directory Layout:
+    - GraphPocket.py -- reads in a pocket and generates a DGL graph object
+    - Dataloader.py -- Creates a tuple dataset along with labels, as well as creates sequence cluster splits
+    - Model.py -- GVP, GVPEdgeConv, ReceptorEncoder classes + loss function(s)
+    - Train.py -- Training and logging
+    - utils.py
