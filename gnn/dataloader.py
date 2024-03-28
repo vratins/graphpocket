@@ -45,7 +45,7 @@ class GraphTupleDataset(dgl.data.DGLDataset):
         pocket_to_graph = GraphPocket()
 
         for i, pocket in enumerate(self.pocket_list):
-            graph = pocket_to_graph(pocket_path=f'../../TOUGH-M1/data/{pocket}/{pocket}_pocket.pdb')
+            graph = pocket_to_graph(pocket_path=f'../../dataset_graph/data/{pocket}/{pocket}_pocket.pdb')
             self.graphs.append(graph)
             self.pocket_index_map[pocket] = i
 
