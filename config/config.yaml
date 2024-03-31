@@ -1,1 +1,44 @@
-test
+##directories
+
+#pocket
+
+#lists
+
+#cluster map for sequences
+
+#trained models and results
+
+
+
+##model config
+
+#which model
+#input scalar size
+#output scalar size
+#vector size
+#number of convolutions
+#dropout
+
+#loss margin
+
+
+##train config and hyperparameters
+
+#number of epochs
+
+#scheduler args
+
+#learning rate
+#clip grad true and size
+#batch size
+
+#number of workers
+#save interval
+
+
+##test config
+
+
+##wandb
+
+
