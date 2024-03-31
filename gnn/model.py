@@ -2,6 +2,7 @@ import dgl
 import dgl.function as fn
 
 import torch
+from torch import nn, einsum
 import torch.nn as nn
 import torch.nn.functional as F
 

@@ -6,6 +6,7 @@ from dgl.dataloading import GraphDataLoader
 
 prody.confProDy(verbosity='none')
 
+import os
 import pickle
 import random
 from sklearn.model_selection import KFold, GroupShuffleSplit
@@ -15,8 +16,9 @@ from graphpocket import GraphPocket
 
 class GraphTupleDataset(dgl.data.DGLDataset):
 
-    def __init__(self, name, pocket_list, pos_list, neg_list):
+    def __init__(self, name, pocket_list, pos_list, neg_list, pocket_path):
         self.pocket_list = pocket_list
+        self.pocket_path = pocket_path
 
         self.pos_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, pos_list))
         self.neg_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, neg_list))
@@ -47,7 +49,7 @@ class GraphTupleDataset(dgl.data.DGLDataset):
         pocket_to_graph = GraphPocket()
 
         for i, pocket in enumerate(self.pocket_list):
-            graph = pocket_to_graph(pocket_path=f'../../dataset_graph/data/{pocket}/{pocket}_pocket.pdb')
+            graph = pocket_to_graph(pocket_path=os.path.join(self.pocket_path, f'{pocket}/{pocket}_pocket.pdb'))
             self.graphs.append(graph)
             self.pocket_index_map[pocket] = i
 
@@ -60,10 +62,10 @@ class GraphTupleDataset(dgl.data.DGLDataset):
 
 #function for dataloading tuples of the pockets from pocket lists - used to get dataloader from a dataset class
 
-def create_dataset(pos_path, neg_path, fold_nr, type, n_folds=5, seed=42):
+def create_dataset(pos_path, neg_path, pocket_path, seq_file, fold_nr, type, n_folds=5, seed=42):
     
     #load in the list of pocket and corresponding sequence clusters
-    with open('../cluster_map.pkl', 'rb') as file:
+    with open(seq_file, 'rb') as file:
         pocket_seq = pickle.load(file)
 
     pocket_list = [pdb[0] + pdb[1] for pdb in list(pocket_seq.keys())]
@@ -89,8 +91,8 @@ def create_dataset(pos_path, neg_path, fold_nr, type, n_folds=5, seed=42):
     with open(neg_path) as f:
         neg_pairs = [line.split()[:2] for line in f.readlines()]
 
-    train_dataset = GraphTupleDataset(name='train', pocket_list=pocket_train, pos_list=pos_pairs, neg_list=neg_pairs) 
-    test_dataset = GraphTupleDataset(name='test', pocket_list=pocket_test, pos_list=pos_pairs, neg_list=neg_pairs)
+    train_dataset = GraphTupleDataset(name='train', pocket_list=pocket_train, pos_list=pos_pairs, neg_list=neg_pairs, pocket_path=pocket_path) 
+    test_dataset = GraphTupleDataset(name='test', pocket_list=pocket_test, pos_list=pos_pairs, neg_list=neg_pairs, pocket_path=pocket_path)
 
     return train_dataset, test_dataset
 
