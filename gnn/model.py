@@ -398,9 +398,15 @@ class ReceptorEncoderGVP(nn.Module):
 
         vector_features_flattened = rec_vec_feat.view(rec_vec_feat.size(0), -1)  # Reshapes to [num_nodes, num_vectors * vector_dim]
     
-        # Concatenate scalar and flattened vector features
         flattened_features = torch.cat([rec_scalar_feat, vector_features_flattened], dim=1)
-
         graph_descriptor = torch.mean(flattened_features, dim=0)
 
         return graph_descriptor
+    
+
+
+def con_loss(output1, output2, label, margin=1.0):
+    euclidean_distance = F.pairwise_distance(output1, output2)    
+    loss_contrastive = torch.mean((1-label) * torch.pow(euclidean_distance, 2) +
+                                (label) * torch.pow(torch.clamp(margin - euclidean_distance, min=0.0), 2))
+    return loss_contrastive

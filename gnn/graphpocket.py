@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import dgl
 
+prody.confProDy(verbosity='none')
 
 from typing import Iterable, Union, List, Dict
 

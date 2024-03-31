@@ -4,6 +4,8 @@ import torch
 import dgl
 from dgl.dataloading import GraphDataLoader
 
+prody.confProDy(verbosity='none')
+
 import pickle
 import random
 from sklearn.model_selection import KFold, GroupShuffleSplit
