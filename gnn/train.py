@@ -31,9 +31,9 @@ def main():
     torch.manual_seed(42)
 
     #create train and test datasets [log the paths in config] -- make all from config?
-    pocket_dir = config['directories']['pockets']
-    pos_list = config['directories']['pos_list']
-    neg_list = config['directories']['neg_list']
+    pocket_dir = os.path.expanduser(config['directories']['pockets'])
+    pos_list = os.path.expanduser(config['directories']['pos_list'])
+    neg_list = os.path.expanduser(config['directories']['neg_list'])
     seq_cluster_map = config['directories']['cluster_map']
     result_dir = config['directories']['result_dir']
 
@@ -71,7 +71,9 @@ def main():
     sched_config = config['train']['scheduler']
     scheduler = get_scheduler(optimizer, sched_config)
 
+    print("Created model, now reading pockets into graphs..")
     train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, fold_nr=0, type='seq')
+    print("Creating dataloaders..")
     # train_dataloader = get_dataloader(train_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
     # test_dataloader = get_dataloader(test_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
 
@@ -126,7 +128,8 @@ def main():
     # epoch_train_losses = []
     # epoch_test_losses = []
 
-    # for epoch in range(epochs):        
+    # for epoch in range(epochs):  
+          print("starting training runs")
     #     train_metrics = train(model, train_dataloader, optimizer, device, loss_margin)
     #     epoch_train_losses.append(train_metrics['loss'])
     #     wandb.log({'train_loss': train_metrics['loss'], 
