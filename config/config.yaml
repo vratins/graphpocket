@@ -24,7 +24,7 @@ loss:
 ##train config and hyperparameters
 
 train:
-  n_epochs: 10
+  n_epochs: 20
   batch_size: 64
   n_workers: 4
 
