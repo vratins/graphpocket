@@ -29,7 +29,7 @@ train:
   n_workers: 4
 
   optimizer:
-    type: 'AdamW'
+    type: 'Adam'
     lr: 0.001
     weight_decay: 0.01
   
@@ -45,6 +45,9 @@ train:
   grad_clip_val: 1.0
 
 ##wandb
+
+wandb:
+
 
 
 
