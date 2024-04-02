@@ -76,10 +76,7 @@ def main():
     train_dataloader = get_dataloader(train_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
     test_dataloader = get_dataloader(test_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
 
-    #resume else create model, opt, and sched from config - wandb set up
-
     #train func 
-
     def train(model, dataloader, optimizer, device, margin):
         model.train()
         total_loss = 0.0
@@ -105,24 +102,58 @@ def main():
         return avg_loss, avg_accuracy
 
     #test func
-
-
+    def test(model, dataloader, device, margin):
+        model.eval()
+        total_loss = 0.0
+        total_accuracy = 0.0
+        
+        with torch.no_grad():
+            for ((graph1, graph2), label) in dataloader:
+                graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
+                
+                output1 = model(graph1)
+                output2 = model(graph2)
+                
+                loss, accuracy = con_loss(output1, output2, label, margin)
+                
+                total_loss += loss.item()
+                total_accuracy += accuracy
+        
+        avg_loss = total_loss / len(dataloader)
+        avg_accuracy = total_accuracy / len(dataloader)
+        return avg_loss, avg_accuracy
 
     #epoch loop
-
-    epoch_losses = []
-    epoch_accuracies = []
+    epoch_train_losses = []
+    epoch_train_accuracies = []
+    epoch_test_losses = []
+    epoch_test_accuracies = []
 
     for epoch in range(epochs):
-        avg_loss, avg_accuracy = train(model, train_dataloader, optimizer, device, margin=1.0)
-        epoch_losses.append(avg_loss)
-        epoch_accuracies.append(avg_accuracy)
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss}, Accuracy: {avg_accuracy}")
+        train_loss, train_accuracy = train(model, train_dataloader, optimizer, device, margin=1.0)
+        epoch_train_losses.append(train_loss)
+        epoch_train_accuracies.append(train_accuracy)
+        print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}")
 
-        if (epoch + 1) % 5 == 0:  # Save every 5 epochs
-            torch.save(model.state_dict(), f"{result_dir}/model_epoch_{epoch+1}.pt")
-        
-        scheduler.step(avg_loss)  
+        test_loss, test_accuracy = test(model, test_dataloader, device, margin=1.0)
+        epoch_test_losses.append(test_loss)
+        epoch_test_accuracies.append(test_accuracy)
+        print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+
+        #save the model every 5 epochs
+        if (epoch + 1) % 5 == 0:
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'train_loss': train_loss,
+                'test_loss': test_loss,
+                'train_accuracy': train_accuracy,
+                'test_accuracy': test_accuracy
+            }, f"{result_dir}/checkpoint_epoch_{epoch+1}.pt")
+            print(f"Model saved at epoch {epoch+1}")
+    
+        scheduler.step(test_loss) 
 
     #maybe a resume function to start where stopped
 
