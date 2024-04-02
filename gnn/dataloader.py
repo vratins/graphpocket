@@ -13,6 +13,8 @@ from sklearn.model_selection import KFold, GroupShuffleSplit
 
 from graphpocket import GraphPocket
 
+from tqdm import tqdm
+
 
 class GraphTupleDataset(dgl.data.DGLDataset):
 
@@ -20,8 +22,10 @@ class GraphTupleDataset(dgl.data.DGLDataset):
         self.pocket_list = pocket_list
         self.pocket_path = pocket_path
 
-        self.pos_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, pos_list))
-        self.neg_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, neg_list))
+        self.pos_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
+                                    tqdm(pos_list, desc=f"Filtering {name} pos_list")))
+        self.neg_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
+                                    tqdm(neg_list, desc=f"Filtering {name} neg_list")))
 
         self.graphs = []
         self.labels = []
@@ -48,14 +52,14 @@ class GraphTupleDataset(dgl.data.DGLDataset):
 
         pocket_to_graph = GraphPocket()
 
-        for i, pocket in enumerate(self.pocket_list):
+        for i, pocket in tqdm(enumerate(self.pocket_list), desc=f"Reading {self.name} Pockets"):
             graph = pocket_to_graph(pocket_path=os.path.join(self.pocket_path, f'{pocket}/{pocket}_pocket.pdb'))
             self.graphs.append(graph)
             self.pocket_index_map[pocket] = i
 
-        for pos_pair in self.pos_list:
+        for pos_pair in tqdm(self.pos_list, desc=f"Creating {self.name} Positive Pocket Pairs"):
             self.labels.append((pos_pair, 1))
-        for neg_pair in self.neg_list:
+        for neg_pair in tqdm(self.neg_list, desc=f"Creating {self.name} Negative Pocket Pairs"):
             self.labels.append((neg_pair, 0))
 
         random.shuffle(self.labels)
@@ -73,6 +77,7 @@ def create_dataset(pos_path, neg_path, pocket_path, seq_file, fold_nr, type, n_f
     pockets = list(pocket_seq.keys())
     clusters = list(pocket_seq.values())
 
+    print("Splitting dataset based on Sequence Clusters..")
     if type == 'seq':
         split = GroupShuffleSplit(n_splits=n_folds, test_size=1.0/n_folds, random_state=seed)
         folds = list(split.split(pockets, groups=clusters))
@@ -85,12 +90,12 @@ def create_dataset(pos_path, neg_path, pocket_path, seq_file, fold_nr, type, n_f
         train_index, test_index = folds[fold_nr]
         pocket_train, pocket_test = [pocket_list[i] for i in train_index], [pocket_list[i] for i in test_index]
 
-
     with open(pos_path) as f:
         pos_pairs = [line.split()[:2] for line in f.readlines()]
     with open(neg_path) as f:
         neg_pairs = [line.split()[:2] for line in f.readlines()]
 
+    print("Split complete, reading pockets..")
     train_dataset = GraphTupleDataset(name='train', pocket_list=pocket_train, pos_list=pos_pairs, neg_list=neg_pairs, pocket_path=pocket_path) 
     test_dataset = GraphTupleDataset(name='test', pocket_list=pocket_test, pos_list=pos_pairs, neg_list=neg_pairs, pocket_path=pocket_path)
 

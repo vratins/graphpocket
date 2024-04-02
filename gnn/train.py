@@ -50,7 +50,7 @@ def main():
     def get_scheduler(optimizer, scheduler_config):
         if scheduler_config['type'] == "ReduceLROnPlateau":
             params = scheduler_config['params']
-            return ReduceLROnPlateau(optimizer, mode=params['mode'], factor=params['factor'], patience=params['patience'], verbose=params['verbose'])
+            return ReduceLROnPlateau(optimizer, mode=params['mode'], factor=params['factor'], patience=params['patience'])
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_config['type']}")
         
@@ -72,7 +72,7 @@ def main():
     scheduler = get_scheduler(optimizer, sched_config)
 
     #wandb
-    wandb.init(project="graphpocket", config=config)
+    # wandb.init(project="graphpocket", config=config)
 
     print("Created model, now reading pockets into graphs..")
     train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, fold_nr=0, type='seq')
@@ -80,79 +80,82 @@ def main():
     train_dataloader = get_dataloader(train_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
     test_dataloader = get_dataloader(test_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
 
-    #train func 
-    def train(model, dataloader, optimizer, device, margin):
-        model.train()
-        losses, pos_dists, neg_dists = []
+    # #train func 
+    # def train(model, dataloader, optimizer, device, margin):
+    #     model.train()
+    #     losses, pos_dists, neg_dists = [], [], []
         
-        for ((graph1, graph2), label) in dataloader:
-            graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
+    #     for ((graph1, graph2), label) in dataloader:
+    #         graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
             
-            output1 = model(graph1)
-            output2 = model(graph2)
+    #         output1 = model(graph1)
+    #         output2 = model(graph2)
             
-            loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
+    #         loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
 
-            losses.append(loss)
-            pos_dists.append(pos_dist)
-            neg_dists.append(neg_dist)    
+    #         losses.append(loss)
+    #         pos_dists.append(pos_dist)
+    #         neg_dists.append(neg_dist)    
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
                             
-        return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dist), 'neg_dist' : np.mean(neg_dist)}
+    #     return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dist), 'neg_dist' : np.mean(neg_dist)}
 
-    #test func
-    def test(model, dataloader, device, margin):
-        model.eval()        
-        losses, pos_dists, neg_dists = []
+    # #test func
+    # def test(model, dataloader, device, margin):
+    #     model.eval()        
+    #     losses, pos_dists, neg_dists = []
 
-        with torch.no_grad():
-            for ((graph1, graph2), label) in dataloader:
-                graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
+    #     with torch.no_grad():
+    #         for ((graph1, graph2), label) in dataloader:
+    #             graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
                 
-                output1 = model(graph1)
-                output2 = model(graph2)
+    #             output1 = model(graph1)
+    #             output2 = model(graph2)
                 
-                loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
+    #             loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
 
-                losses.append(loss)
-                pos_dists.append(pos_dist)
-                neg_dists.append(neg_dist)
+    #             losses.append(loss)
+    #             pos_dists.append(pos_dist)
+    #             neg_dists.append(neg_dist)
 
-        return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dist), 'neg_dist' : np.mean(neg_dist)}
+    #     return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dist), 'neg_dist' : np.mean(neg_dist)}
 
-    #epoch loop
-    epoch_train_losses = []
-    epoch_test_losses = []
+    # #epoch loop
+    # epoch_train_losses = []
+    # epoch_test_losses = []
 
-    for epoch in range(epochs):  
-        print("starting training runs")
-        train_metrics = train(model, train_dataloader, optimizer, device, loss_margin)
-        epoch_train_losses.append(train_metrics['loss'])
-        wandb.log({'train_loss': train_metrics['loss'], 
-                   'train_pos_dist': train_metrics['pos_dist'], 
-                   'train_neg_dist': train_metrics['neg_dist'],
-                   'epoch': epoch})
-        print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
+    # for epoch in range(epochs):  
+    #     print("starting training runs")
+    #     train_metrics = train(model, train_dataloader, optimizer, device, loss_margin)
+    #     epoch_train_losses.append(train_metrics['loss'])
+    #     wandb.log({'train_loss': train_metrics['loss'], 
+    #                'train_pos_dist': train_metrics['pos_dist'], 
+    #                'train_neg_dist': train_metrics['neg_dist'],
+    #                'epoch': epoch})
+    #     print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test(model, test_dataloader, device, loss_margin)
-        epoch_test_losses.append(test_metrics['loss'])
-        wandb.log({'test_loss': test_metrics['loss'], 
-                   'test_pos_dist': test_metrics['pos_dist'], 
-                   'test_neg_dist': test_metrics['neg_dist'],
-                   'epoch': epoch})
-        print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
+    #     test_metrics = test(model, test_dataloader, device, loss_margin)
+    #     epoch_test_losses.append(test_metrics['loss'])
+    #     wandb.log({'test_loss': test_metrics['loss'], 
+    #                'test_pos_dist': test_metrics['pos_dist'], 
+    #                'test_neg_dist': test_metrics['neg_dist'],
+    #                'epoch': epoch})
+    #     print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model.pth.tar'))
-        print(f"Model saved at epoch {epoch+1}")
+    #     current_lr = optimizer.get_last_lr()
+    #     print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
 
-        scheduler.step(test_metrics['loss'])        
+    #     torch.save({
+    #         'epoch': epoch,
+    #         'model_state_dict': model.state_dict(),
+    #         'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
+    #         os.path.join(result_dir, 'model.pth.tar'))
+    #     print(f"Model saved at epoch {epoch+1}")
+
+    #     scheduler.step(test_metrics['loss'])        
 
 
 if __name__=='__main__':
