@@ -167,6 +167,8 @@ def main():
                 pos_dists.append(pos_dist)
                 neg_dists.append(neg_dist)
 
+                torch.cuda.empty_cache()
+
         return {'loss' : torch.mean(losses).cpu().numpy(), 'pos_dist' : torch.mean(pos_dist).cpu().numpy(), 
                 'neg_dist' : torch.mean(neg_dist).cpu().numpy()}
 
