@@ -221,19 +221,19 @@ def main():
         print("starting training runs")
         train_metrics = train(epoch)
         epoch_train_losses.append(train_metrics['loss'])
-        wandb.log({'train_loss': train_metrics['loss'], 
-                   'train_pos_dist': train_metrics['pos_dist'], 
-                   'train_neg_dist': train_metrics['neg_dist'],
-                   'epoch': epoch+1})
+        # wandb.log({'train_loss': train_metrics['loss'], 
+        #            'train_pos_dist': train_metrics['pos_dist'], 
+        #            'train_neg_dist': train_metrics['neg_dist'],
+        #            'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
         if (epoch+1)%5==0:
             test_metrics = test(epoch)
             epoch_test_losses.append(test_metrics['loss'])
-            wandb.log({'test_loss': test_metrics['loss'], 
-                        'test_pos_dist': test_metrics['pos_dist'], 
-                        'test_neg_dist': test_metrics['neg_dist'],
-                        'epoch': epoch+1})
+            # wandb.log({'test_loss': test_metrics['loss'], 
+            #             'test_pos_dist': test_metrics['pos_dist'], 
+            #             'test_neg_dist': test_metrics['neg_dist'],
+            #             'epoch': epoch+1})
             print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
         scheduler.step() 
@@ -247,9 +247,6 @@ def main():
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
             os.path.join(result_dir, 'model.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
-
-        scheduler.step(test_metrics['loss'])   
-
 
 if __name__=='__main__':
     main()
