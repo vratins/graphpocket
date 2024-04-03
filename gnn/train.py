@@ -233,7 +233,7 @@ def main():
                    'epoch': epoch})
         print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-        current_lr = optimizer.get_last_lr()
+        current_lr = scheduler.get_last_lr()
         print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
 
         torch.save({
