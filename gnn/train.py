@@ -181,8 +181,6 @@ def main():
             loss.backward()
             optimizer.step()
 
-            break
-
             # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
