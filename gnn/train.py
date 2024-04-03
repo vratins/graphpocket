@@ -16,6 +16,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_scatter import scatter_mean
 
 import wandb
+from tqdm import tqdm
 
 from dataloader import get_dataloader, create_dataset
 from graphpocket import GraphPocket
@@ -43,6 +44,7 @@ def main():
 
     #set random seed manually
     torch.manual_seed(42)
+    torch.cuda.empty_cache()
 
     #create train and test datasets [log the paths in config] -- make all from config?
     pocket_dir = os.path.expanduser(config['directories']['pockets'])
