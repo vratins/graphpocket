@@ -159,7 +159,7 @@ def main():
     def train(epoch):
         model.train()
         losses, pos_dists, neg_dists = [], [], []    
-        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f"Train Epoch: {epoch}")
+        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f"Train Epoch: {epoch+1}")
         
         for batch_idx, ((graph1, graph2), label) in progress_bar:
             torch.cuda.reset_peak_memory_stats(device)  
@@ -180,6 +180,7 @@ def main():
         
             loss.backward()
             optimizer.step()
+            break
 
             # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
@@ -188,9 +189,9 @@ def main():
     #test func
     def test(epoch):
         model.eval()        
-        losses, pos_dists, neg_dists = []
+        losses, pos_dists, neg_dists = [],[],[]
 
-        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f"Test Epoch: {epoch}")
+        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f"Test Epoch: {epoch+1}")
 
         with torch.no_grad():
             for batch_idx, ((graph1, graph2), label) in progress_bar:
@@ -208,6 +209,7 @@ def main():
                 losses.append(loss.item())
                 pos_dists.extend(pos_dist.cpu().numpy().tolist())
                 neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
+                break
 
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
@@ -222,7 +224,7 @@ def main():
         wandb.log({'train_loss': train_metrics['loss'], 
                    'train_pos_dist': train_metrics['pos_dist'], 
                    'train_neg_dist': train_metrics['neg_dist'],
-                   'epoch': epoch})
+                   'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
         test_metrics = test(epoch)
@@ -230,12 +232,16 @@ def main():
         wandb.log({'test_loss': test_metrics['loss'], 
                    'test_pos_dist': test_metrics['pos_dist'], 
                    'test_neg_dist': test_metrics['neg_dist'],
-                   'epoch': epoch})
+                   'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-        current_lr = scheduler.get_last_lr()
-        print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
+       # current_lr = scheduler.get_last_lr()
+       # print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
 
+        for param_group in optimizer.param_groups:
+            current_lr = param_group['lr']
+            print(f"Current Learning Rate: {current_lr}")
+        break
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -243,7 +249,7 @@ def main():
             os.path.join(result_dir, 'model.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
-        scheduler.step(test_metrics['loss'])        
+        scheduler.step(test_metrics['loss'])   
 
 
 if __name__=='__main__':
