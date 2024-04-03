@@ -180,7 +180,6 @@ def main():
         
             loss.backward()
             optimizer.step()
-            break
 
             # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
@@ -210,8 +209,6 @@ def main():
                 pos_dists.extend(pos_dist.cpu().numpy().tolist())
                 neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
 
-                break
-
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
     #epoch loop
@@ -240,12 +237,6 @@ def main():
 
         current_lr = scheduler.get_last_lr()
         print(f"Current Learning Rate: {current_lr}")
-
-        break
-
-        # for param_group in optimizer.param_groups:
-        #     current_lr = param_group['lr']
-        #     print(f"Current Learning Rate: {current_lr}")
             
         torch.save({
             'epoch': epoch,
