@@ -114,7 +114,7 @@ def main():
     print("Size of test dataset: ", len(test_dataloader)*batch_size, "pairs") 
 
     #train func 
-    def train(model, epoch, dataloader, optimizer, device, margin):
+    def train(model, epoch, train_dataloader, optimizer, device, margin):
         model.train()
         losses, pos_dists, neg_dists = [], [], []
 
@@ -138,12 +138,14 @@ def main():
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            torch.cuda.empty_cache()
                             
         return {'loss' : torch.mean(losses).cpu().numpy(), 'pos_dist' : torch.mean(pos_dist).cpu().numpy(), 
                 'neg_dist' : torch.mean(neg_dist).cpu().numpy()}
 
     #test func
-    def test(model, epoch, dataloader, device, margin):
+    def test(model, epoch, test_dataloader, device, margin):
         model.eval()        
         losses, pos_dists, neg_dists = []
 
@@ -156,8 +158,8 @@ def main():
                 batch_indx1 = get_batch_idx(graph1).to(device)
                 batch_indx2 = get_batch_idx(graph2).to(device)
                 
-                output1 = model(graph1)
-                output2 = model(graph2)
+                output1 = model(graph1, batch_indx1)
+                output2 = model(graph2, batch_indx2)
                 
                 loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
 
