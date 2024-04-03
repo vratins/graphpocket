@@ -156,10 +156,10 @@ def main():
     #     break
 
 
-    def train():
+    def train(epoch):
         model.train()
         losses, pos_dists, neg_dists = [], [], []    
-        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
+        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f"Train Epoch: {epoch}")
         
         for batch_idx, ((graph1, graph2), label) in progress_bar:
             torch.cuda.reset_peak_memory_stats(device)  
@@ -186,11 +186,11 @@ def main():
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
     #test func
-    def test():
+    def test(epoch):
         model.eval()        
         losses, pos_dists, neg_dists = []
 
-        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
+        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f"Test Epoch: {epoch}")
 
         with torch.no_grad():
             for batch_idx, ((graph1, graph2), label) in progress_bar:
@@ -217,7 +217,7 @@ def main():
 
     for epoch in range(epochs):  
         print("starting training runs")
-        train_metrics = train()
+        train_metrics = train(epoch)
         epoch_train_losses.append(train_metrics['loss'])
         wandb.log({'train_loss': train_metrics['loss'], 
                    'train_pos_dist': train_metrics['pos_dist'], 
@@ -225,7 +225,7 @@ def main():
                    'epoch': epoch})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test()
+        test_metrics = test(epoch)
         epoch_test_losses.append(test_metrics['loss'])
         wandb.log({'test_loss': test_metrics['loss'], 
                    'test_pos_dist': test_metrics['pos_dist'], 
