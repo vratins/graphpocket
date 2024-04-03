@@ -12,7 +12,7 @@ import dgl
 from dgl.dataloading import GraphDataLoader
 import torch
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 from torch_scatter import scatter_mean
 
 import wandb
@@ -64,9 +64,9 @@ def main():
             raise ValueError(f"Unsupported optimizer type: {optimizer_config['type']}")
 
     def get_scheduler(optimizer, scheduler_config):
-        if scheduler_config['type'] == "ReduceLROnPlateau":
+        if scheduler_config['type'] == "StepLR":
             params = scheduler_config['params']
-            return ReduceLROnPlateau(optimizer, mode=params['mode'], factor=params['factor'], patience=params['patience'])
+            return StepLR(optimizer, step_size=params['step_size'], gamma=params['gamma'])
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_config['type']}")
         
@@ -102,7 +102,7 @@ def main():
     scheduler = get_scheduler(optimizer, sched_config)
 
     #wandb
-    wandb.init(project="graphpocket", config=config)
+    # wandb.init(project="graphpocket", config=config)
 
     print("Created model, now reading pockets into graphs..")
 
@@ -181,6 +181,8 @@ def main():
             loss.backward()
             optimizer.step()
 
+            break
+
             # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
@@ -234,11 +236,11 @@ def main():
                         'epoch': epoch+1})
             print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-            scheduler.step(test_metrics['loss']) 
+        scheduler.step() 
 
         current_lr = scheduler.get_last_lr()
         print(f"Current Learning Rate: {current_lr}")
-            
+  
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
