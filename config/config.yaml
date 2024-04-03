@@ -14,7 +14,7 @@ model:
   output_scalar_size: 128
   vector_size: 16
   n_convs: 3
-  dropout: 0.1
+  dropout: 0.2
   vector_gating: true
   xavier_init: true
 
@@ -24,14 +24,14 @@ loss:
 ##train config and hyperparameters
 
 train:
-  n_epochs: 20
+  n_epochs: 50
   batch_size: 64
   n_workers: 6
 
   optimizer:
     type: 'Adam'
-    lr: 0.001
-    weight_decay: 0.01
+    lr: 0.0005
+    weight_decay: 0.001
   
   scheduler:
     type: "ReduceLROnPlateau"

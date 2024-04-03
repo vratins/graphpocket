@@ -225,15 +225,16 @@ def main():
                    'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test(epoch)
-        epoch_test_losses.append(test_metrics['loss'])
-        wandb.log({'test_loss': test_metrics['loss'], 
-                   'test_pos_dist': test_metrics['pos_dist'], 
-                   'test_neg_dist': test_metrics['neg_dist'],
-                   'epoch': epoch+1})
-        print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
+        if (epoch+1)%5==0:
+            test_metrics = test(epoch)
+            epoch_test_losses.append(test_metrics['loss'])
+            wandb.log({'test_loss': test_metrics['loss'], 
+                        'test_pos_dist': test_metrics['pos_dist'], 
+                        'test_neg_dist': test_metrics['neg_dist'],
+                        'epoch': epoch+1})
+            print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-        scheduler.step(test_metrics['loss']) 
+            scheduler.step(test_metrics['loss']) 
 
         current_lr = scheduler.get_last_lr()
         print(f"Current Learning Rate: {current_lr}")
