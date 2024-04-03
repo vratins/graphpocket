@@ -209,6 +209,7 @@ def main():
                 losses.append(loss.item())
                 pos_dists.extend(pos_dist.cpu().numpy().tolist())
                 neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
+
                 break
 
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
@@ -235,13 +236,17 @@ def main():
                    'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
 
-       # current_lr = scheduler.get_last_lr()
-       # print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
+        scheduler.step(test_metrics['loss']) 
 
-        for param_group in optimizer.param_groups:
-            current_lr = param_group['lr']
-            print(f"Current Learning Rate: {current_lr}")
+        current_lr = scheduler.get_last_lr()
+        print(f"Current Learning Rate: {current_lr}")
+
         break
+
+        # for param_group in optimizer.param_groups:
+        #     current_lr = param_group['lr']
+        #     print(f"Current Learning Rate: {current_lr}")
+            
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
