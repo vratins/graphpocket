@@ -105,7 +105,20 @@ def main():
     wandb.init(project="graphpocket", config=config)
 
     print("Created model, now reading pockets into graphs..")
-    train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, fold_nr=0, type='seq')
+
+    if os.path.exists(os.path.join(pocket_dir, 'train_dataset.pkl')):
+        with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'rb') as f:
+            train_dataset = pickle.load(f)
+        with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'rb') as f:
+            test_dataset = pickle.load(f)
+
+    else:
+        train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, fold_nr=0, type='seq')
+        with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'wb') as f:
+            pickle.dump(train_dataset, f)
+        with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'wb') as f:
+            pickle.dump(test_dataset, f)
+        
     print("Creating dataloaders..")
     train_dataloader = get_dataloader(train_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
     test_dataloader = get_dataloader(test_dataset, batch_size=batch_size, num_workers=n_workers, pin_memory=True)
@@ -114,43 +127,74 @@ def main():
     print("Size of test dataset: ", len(test_dataloader)*batch_size, "pairs") 
 
     #train func 
-    def train(model, epoch, train_dataloader, optimizer, device, margin):
-        model.train()
-        losses, pos_dists, neg_dists = [], [], []
+    s=1024*1024
+    # model.train()
+    # epoch_train_losses = []
+    # for epoch in range(epochs):
+    #     for batch_idx, ((graph1, graph2), label) in enumerate(train_dataloader):
+    #         if batch_idx==100:
+    #             break
+    #         torch.cuda.reset_peak_memory_stats(device)    
+    #         print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
+    #         graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
+            
+    #         batch_indx1 = get_batch_idx(graph1).to(device)
+    #         batch_indx2 = get_batch_idx(graph2).to(device)
+    #         optimizer.zero_grad()
+            
+    #         output1 = model(graph1, batch_indx1)
+    #         output2 = model(graph2, batch_indx2)
+        
+    #         loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
 
-        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f'Epoch {epoch}')
+    #         print(loss.item())
+
+    #         loss.backward()
+    #         optimizer.step()
+    #         continue
+
+    #     break
+
+
+    def train():
+        model.train()
+        losses, pos_dists, neg_dists = [], [], []    
+        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
         
         for batch_idx, ((graph1, graph2), label) in progress_bar:
+            torch.cuda.reset_peak_memory_stats(device)  
             graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
-
+        
             batch_indx1 = get_batch_idx(graph1).to(device)
             batch_indx2 = get_batch_idx(graph2).to(device)
-            
+            optimizer.zero_grad()
+                
             output1 = model(graph1, batch_indx1)
             output2 = model(graph2, batch_indx2)
-            
-            loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
-
-            losses.append(loss)
-            pos_dists.append(pos_dist)
-            neg_dists.append(neg_dist)    
-
-            optimizer.zero_grad()
+                
+            loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
+    
+            losses.append(loss.item())
+            pos_dists.extend(pos_dist.cpu().numpy().tolist())
+            neg_dists.extend(neg_dist.cpu().numpy().tolist())  
+        
             loss.backward()
             optimizer.step()
+
+            # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
-        return {'loss' : torch.mean(losses).cpu().numpy(), 'pos_dist' : torch.mean(pos_dist).cpu().numpy(), 
-                'neg_dist' : torch.mean(neg_dist).cpu().numpy()}
+        return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
     #test func
-    def test(model, epoch, test_dataloader, device, margin):
+    def test():
         model.eval()        
         losses, pos_dists, neg_dists = []
 
-        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f'Epoch {epoch}')
+        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
 
         with torch.no_grad():
             for batch_idx, ((graph1, graph2), label) in progress_bar:
+                torch.cuda.reset_peak_memory_stats(device)  
                 graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
 
                 batch_indx1 = get_batch_idx(graph1).to(device)
@@ -159,14 +203,13 @@ def main():
                 output1 = model(graph1, batch_indx1)
                 output2 = model(graph2, batch_indx2)
                 
-                loss, pos_dist, neg_dist = con_loss(output1, output2, label, margin)
+                loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
 
-                losses.append(loss)
-                pos_dists.append(pos_dist)
-                neg_dists.append(neg_dist)
+                losses.append(loss.item())
+                pos_dists.extend(pos_dist.cpu().numpy().tolist())
+                neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
 
-        return {'loss' : torch.mean(losses).cpu().numpy(), 'pos_dist' : torch.mean(pos_dist).cpu().numpy(), 
-                'neg_dist' : torch.mean(neg_dist).cpu().numpy()}
+        return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
     #epoch loop
     epoch_train_losses = []
@@ -174,7 +217,7 @@ def main():
 
     for epoch in range(epochs):  
         print("starting training runs")
-        train_metrics = train(model, epoch, train_dataloader, optimizer, device, loss_margin)
+        train_metrics = train()
         epoch_train_losses.append(train_metrics['loss'])
         wandb.log({'train_loss': train_metrics['loss'], 
                    'train_pos_dist': train_metrics['pos_dist'], 
@@ -182,7 +225,7 @@ def main():
                    'epoch': epoch})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test(model, epoch, test_dataloader, device, loss_margin)
+        test_metrics = test()
         epoch_test_losses.append(test_metrics['loss'])
         wandb.log({'test_loss': test_metrics['loss'], 
                    'test_pos_dist': test_metrics['pos_dist'], 

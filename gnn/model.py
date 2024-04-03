@@ -398,7 +398,7 @@ class ReceptorEncoderGVP(nn.Module):
             rec_feats = (rec_scalar_feat, rec_coord_feat, rec_vec_feat)
             rec_scalar_feat, rec_vec_feat = self.rec_conv_layers[i](g, rec_feats=rec_feats, edge_feats=edge_feat, z=z)
 
-        vector_features_flattened = rec_vec_feat.view(rec_vec_feat.size(0), -1)  # Reshapes to [num_nodes, num_vectors * vector_dim]
+        vector_features_flattened = rec_vec_feat.view(rec_vec_feat.size(0), -1)  #reshapes to [num_nodes, num_vectors * vector_dim]
 
         #concatenate the scalar and vector features
         flattened_features = torch.cat([rec_scalar_feat, vector_features_flattened], dim=1)
