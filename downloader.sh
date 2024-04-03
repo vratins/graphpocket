@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#from: https://github.com/BenevolentAI/DeeplyTough/blob/master/datasets_downloader.sh
+
 if [ -z "$STRUCTURE_DATA_DIR" ]; then
   echo "STRUCTURE_DIR not set"
   exit
