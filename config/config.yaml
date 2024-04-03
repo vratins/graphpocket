@@ -34,11 +34,10 @@ train:
     weight_decay: 0.001
   
   scheduler:
-    type: "ReduceLROnPlateau"
+    type: "StepLR"
     params:
-      mode: 'min'
-      factor: 0.1
-      patience: 10
+      step_size: 10
+      gamma: 0.25
   
   gradient_clipping: true
   grad_clip_val: 1.0
