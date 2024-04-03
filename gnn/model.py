@@ -364,7 +364,7 @@ class ReceptorEncoderGVP(nn.Module):
                 rbf_dmax=rbf_dmax
             ))
 
-    def forward(self, g: dgl.DGLHeteroGraph):
+    def forward(self, g: dgl.DGLHeteroGraph, batch_idx: torch.Tensor):
 
         device = g.device
         batch_size = g.batch_size
@@ -398,19 +398,35 @@ class ReceptorEncoderGVP(nn.Module):
             rec_scalar_feat, rec_vec_feat = self.rec_conv_layers[i](g, rec_feats=rec_feats, edge_feats=edge_feat, z=z)
 
         vector_features_flattened = rec_vec_feat.view(rec_vec_feat.size(0), -1)  # Reshapes to [num_nodes, num_vectors * vector_dim]
-    
-        flattened_features = torch.cat([rec_scalar_feat, vector_features_flattened], dim=1)
-        graph_descriptor = torch.mean(flattened_features, dim=0)
 
-        return graph_descriptor
+        #concatenate the scalar and vector features
+        flattened_features = torch.cat([rec_scalar_feat, vector_features_flattened], dim=1)
+        #average the features across the graphs in batch, return a tensor of shape [batch_size, feature length]
+        graph_features = scatter_mean(flattened_features, batch_idx, dim=0)
+        
+        return graph_features
 
 
 def con_loss(output1, output2, labels, margin=1.0):
 
     dists = F.pairwise_distance(output1, output2).view(-1)
+    
     pos_loss = dists.pow(2)
     neg_loss = torch.clamp(margin - dists, min=0).pow(2)
 
     loss_contrastive = torch.sum(pos_loss * labels + neg_loss * (1 - labels)) / labels.numel()
 
     return loss_contrastive, dists[labels > 0.5].detach(), dists[labels < 0.5].detach()
+
+def get_batch_idx(g: dgl.DGLHeteroGraph) -> torch.Tensor:
+        
+    batch_size = g.batch_size
+    device = g.device
+    num_nodes_per_graph = g.batch_num_nodes()
+
+    batch_indxs = torch.cat([
+        torch.full((num_nodes,), i, dtype=torch.long, device=device)
+        for i, num_nodes in enumerate(num_nodes_per_graph)
+    ])
+    
+    return batch_indxs
