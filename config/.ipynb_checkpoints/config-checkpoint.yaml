@@ -4,8 +4,8 @@ directories:
   pockets: '~/dataset_graph/data'
   pos_list: '~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list'
   neg_list: '~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list'
-  cluster_map: '../cluster_map.pkl'
-  result_dir: '../results'
+  cluster_map: '~/graphpocket/cluster_map.pkl'
+  result_dir: '~/graphpocket/results'
 
 ##model config
 

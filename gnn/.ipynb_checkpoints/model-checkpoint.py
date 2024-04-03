@@ -5,6 +5,7 @@ import torch
 from torch import nn, einsum
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_scatter import scatter_mean
 
 from typing import List, Tuple, Union, Dict
 
