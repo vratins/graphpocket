@@ -112,11 +112,13 @@ def main():
     print("Size of test dataset: ", len(test_dataloader)*batch_size, "pairs") 
 
     #train func 
-    def train(model, dataloader, optimizer, device, margin):
+    def train(model, epoch, dataloader, optimizer, device, margin):
         model.train()
         losses, pos_dists, neg_dists = [], [], []
+
+        progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f'Epoch {epoch}')
         
-        for ((graph1, graph2), label) in dataloader:
+        for batch_idx, ((graph1, graph2), label) in progress_bar:
             graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
 
             batch_indx1 = get_batch_idx(graph1).to(device)
@@ -139,12 +141,14 @@ def main():
                 'neg_dist' : torch.mean(neg_dist).cpu().numpy()}
 
     #test func
-    def test(model, dataloader, device, margin):
+    def test(model, epoch, dataloader, device, margin):
         model.eval()        
         losses, pos_dists, neg_dists = []
 
+        progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f'Epoch {epoch}')
+
         with torch.no_grad():
-            for ((graph1, graph2), label) in dataloader:
+            for batch_idx, ((graph1, graph2), label) in progress_bar:
                 graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
 
                 batch_indx1 = get_batch_idx(graph1).to(device)
@@ -168,7 +172,7 @@ def main():
 
     for epoch in range(epochs):  
         print("starting training runs")
-        train_metrics = train(model, train_dataloader, optimizer, device, loss_margin)
+        train_metrics = train(model, epoch, train_dataloader, optimizer, device, loss_margin)
         epoch_train_losses.append(train_metrics['loss'])
         wandb.log({'train_loss': train_metrics['loss'], 
                    'train_pos_dist': train_metrics['pos_dist'], 
@@ -176,7 +180,7 @@ def main():
                    'epoch': epoch})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test(model, test_dataloader, device, loss_margin)
+        test_metrics = test(model, epoch, test_dataloader, device, loss_margin)
         epoch_test_losses.append(test_metrics['loss'])
         wandb.log({'test_loss': test_metrics['loss'], 
                    'test_pos_dist': test_metrics['pos_dist'], 
