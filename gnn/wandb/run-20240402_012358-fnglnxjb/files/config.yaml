@@ -1,0 +1,81 @@
+wandb_version: 1
+
+directories:
+  desc: null
+  value:
+    pockets: ~/dataset_graph/data
+    pos_list: ~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list
+    neg_list: ~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list
+    cluster_map: ../cluster_map.pkl
+    result_dir: ../results
+model:
+  desc: null
+  value:
+    input_scalar_size: 4
+    output_scalar_size: 128
+    vector_size: 16
+    n_convs: 3
+    dropout: 0.2
+    vector_gating: true
+    xavier_init: true
+loss:
+  desc: null
+  value:
+    margin: 1.0
+train:
+  desc: null
+  value:
+    n_epochs: 20
+    batch_size: 64
+    n_workers: 4
+    optimizer:
+      type: Adam
+      lr: 0.001
+      weight_decay: 0.01
+    scheduler:
+      type: ReduceLROnPlateau
+      params:
+        mode: min
+        factor: 0.1
+        patience: 10
+    gradient_clipping: true
+    grad_clip_val: 1.0
+wandb:
+  desc: null
+  value: null
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.14
+    cli_version: 0.16.5
+    framework: huggingface
+    huggingface_version: 4.39.2
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1712035438.0
+    t:
+      1:
+      - 1
+      - 5
+      - 11
+      - 49
+      - 53
+      - 55
+      - 76
+      2:
+      - 1
+      - 5
+      - 11
+      - 49
+      - 53
+      - 55
+      - 76
+      3:
+      - 16
+      - 23
+      4: 3.10.14
+      5: 0.16.5
+      6: 4.39.2
+      8:
+      - 5
+      13: linux-x86_64

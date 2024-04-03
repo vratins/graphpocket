@@ -1,0 +1,53 @@
+##directories
+
+directories:
+  pockets: '~/dataset_graph/data'
+  pos_list: '~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list'
+  neg_list: '~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list'
+  cluster_map: '../cluster_map.pkl'
+  result_dir: '../results'
+
+##model config
+
+model:
+  input_scalar_size: 4
+  output_scalar_size: 128
+  vector_size: 16
+  n_convs: 3
+  dropout: 0.2
+  vector_gating: true
+  xavier_init: true
+
+loss:
+  margin: 1.0
+
+##train config and hyperparameters
+
+train:
+  n_epochs: 20
+  batch_size: 64
+  n_workers: 2
+
+  optimizer:
+    type: 'Adam'
+    lr: 0.001
+    weight_decay: 0.01
+  
+  scheduler:
+    type: "ReduceLROnPlateau"
+    params:
+      mode: 'min'
+      factor: 0.1
+      patience: 10
+  
+  gradient_clipping: true
+  grad_clip_val: 1.0
+
+##wandb
+
+wandb:
+
+
+
+
+
