@@ -22,6 +22,8 @@ class GraphTupleDataset(dgl.data.DGLDataset):
         self.pocket_list = pocket_list
         self.pocket_path = pocket_path
 
+        #filter pos and neg based on pocket_list
+
         self.pos_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
                                     tqdm(pos_list, desc=f"Filtering {name} pos_list")))
         self.neg_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
@@ -29,8 +31,6 @@ class GraphTupleDataset(dgl.data.DGLDataset):
 
         self.graphs = []
         self.labels = []
-
-        #filter pos and neg based on pocket_list
 
         self.pocket_index_map = {}
 
