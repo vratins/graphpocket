@@ -12,7 +12,7 @@ import dgl
 from dgl.dataloading import GraphDataLoader
 import torch
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 from torch_scatter import scatter_mean
 
 import wandb
@@ -59,14 +59,14 @@ def main():
 
     def get_optimizer(model_parameters, optimizer_config):
         if optimizer_config['type'] == 'Adam':
-            return Adam(model_parameters, lr=optimizer_config['lr'], weight_decay=optimizer_config['weight_decay'])
+            return Adam(model_parameters, lr=optimizer_config['lr']) #weight_decay=optimizer_config['weight_decay'])
         else:
             raise ValueError(f"Unsupported optimizer type: {optimizer_config['type']}")
 
     def get_scheduler(optimizer, scheduler_config):
-        if scheduler_config['type'] == "ReduceLROnPlateau":
+        if scheduler_config['type'] == "StepLR":
             params = scheduler_config['params']
-            return ReduceLROnPlateau(optimizer, mode=params['mode'], factor=params['factor'], patience=params['patience'])
+            return StepLR(optimizer, step_size=params['step_size'], gamma=params['gamma'])
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_config['type']}")
         
@@ -180,7 +180,6 @@ def main():
         
             loss.backward()
             optimizer.step()
-            break
 
             # print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
                             
@@ -209,7 +208,6 @@ def main():
                 losses.append(loss.item())
                 pos_dists.extend(pos_dist.cpu().numpy().tolist())
                 neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
-                break
 
         return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
 
@@ -227,27 +225,26 @@ def main():
                    'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        test_metrics = test(epoch)
-        epoch_test_losses.append(test_metrics['loss'])
-        wandb.log({'test_loss': test_metrics['loss'], 
-                   'test_pos_dist': test_metrics['pos_dist'], 
-                   'test_neg_dist': test_metrics['neg_dist'],
-                   'epoch': epoch+1})
-        print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
+        if (epoch+1)%5==0:
+            test_metrics = test(epoch)
+            epoch_test_losses.append(test_metrics['loss'])
+            wandb.log({'test_loss': test_metrics['loss'], 
+                        'test_pos_dist': test_metrics['pos_dist'], 
+                        'test_neg_dist': test_metrics['neg_dist'],
+                        'epoch': epoch+1})
+            print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
+
+        scheduler.step() 
 
         current_lr = scheduler.get_last_lr()
-        print(f"Epoch {epoch+1}, Current Learning Rate(s): {current_lr}")
-
-        break
+        print(f"Current Learning Rate: {current_lr}")
+  
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model.pth.tar'))
+            os.path.join(result_dir, 'model_2.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
-
-        scheduler.step(test_metrics['loss'])   
-
 
 if __name__=='__main__':
     main()

@@ -59,7 +59,7 @@ def main():
 
     def get_optimizer(model_parameters, optimizer_config):
         if optimizer_config['type'] == 'Adam':
-            return Adam(model_parameters, lr=optimizer_config['lr'], weight_decay=optimizer_config['weight_decay'])
+            return Adam(model_parameters, lr=optimizer_config['lr']) #weight_decay=optimizer_config['weight_decay'])
         else:
             raise ValueError(f"Unsupported optimizer type: {optimizer_config['type']}")
 
@@ -243,7 +243,7 @@ def main():
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model_1.pth.tar'))
+            os.path.join(result_dir, 'model_2.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':
