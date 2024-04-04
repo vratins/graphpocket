@@ -24,20 +24,20 @@ loss:
 ##train config and hyperparameters
 
 train:
-  n_epochs: 50
+  n_epochs: 100
   batch_size: 64
   n_workers: 6
 
   optimizer:
     type: 'Adam'
-    lr: 0.0005
+    lr: 0.0001
     weight_decay: 0.001
   
   scheduler:
     type: "StepLR"
     params:
       step_size: 10
-      gamma: 0.25
+      gamma: 0.5
   
   gradient_clipping: true
   grad_clip_val: 1.0
