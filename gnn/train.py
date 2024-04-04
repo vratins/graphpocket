@@ -243,7 +243,7 @@ def main():
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model.pth.tar'))
+            os.path.join(result_dir, 'model_1.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':
