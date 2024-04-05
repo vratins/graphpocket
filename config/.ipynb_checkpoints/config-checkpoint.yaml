@@ -14,7 +14,7 @@ model:
   output_scalar_size: 128
   vector_size: 16
   n_convs: 3
-  dropout: 0.1
+  dropout: 0.2
   vector_gating: true
   xavier_init: true
 
@@ -25,26 +25,19 @@ loss:
 
 train:
   n_epochs: 100
-  batch_size: 64
+  batch_size: 128
   n_workers: 6
 
   optimizer:
     type: 'Adam'
-    lr: 0.001
-    weight_decay: 0.001
+    lr: 0.01
+    weight_decay: 0.00001
   
   scheduler:
     type: "StepLR"
     params:
       step_size: 20
       gamma: 0.1
-  
-  gradient_clipping: true
-  grad_clip_val: 1.0
-
-##wandb
-
-wandb:
 
 
 

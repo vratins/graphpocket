@@ -59,7 +59,7 @@ def main():
 
     def get_optimizer(model_parameters, optimizer_config):
         if optimizer_config['type'] == 'Adam':
-            return Adam(model_parameters, lr=optimizer_config['lr']) #weight_decay=optimizer_config['weight_decay'])
+            return Adam(model_parameters, lr=optimizer_config['lr'], weight_decay=optimizer_config['weight_decay'])
         else:
             raise ValueError(f"Unsupported optimizer type: {optimizer_config['type']}")
 
@@ -162,7 +162,7 @@ def main():
         progress_bar = tqdm(enumerate(train_dataloader), total=len(train_dataloader), desc=f"Train Epoch: {epoch+1}")
         
         for batch_idx, ((graph1, graph2), label) in progress_bar:
-            torch.cuda.reset_peak_memory_stats(device)  
+            # torch.cuda.reset_peak_memory_stats(device)  
             graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
         
             batch_indx1 = get_batch_idx(graph1).to(device)
@@ -194,7 +194,7 @@ def main():
 
         with torch.no_grad():
             for batch_idx, ((graph1, graph2), label) in progress_bar:
-                torch.cuda.reset_peak_memory_stats(device)  
+                # torch.cuda.reset_peak_memory_stats(device)  
                 graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
 
                 batch_indx1 = get_batch_idx(graph1).to(device)
@@ -225,7 +225,7 @@ def main():
                    'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        if (epoch+1)%5==0:
+        if (epoch+1)%2==0:
             test_metrics = test(epoch)
             epoch_test_losses.append(test_metrics['loss'])
             wandb.log({'test_loss': test_metrics['loss'], 
@@ -243,7 +243,7 @@ def main():
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model_2.pth.tar'))
+            os.path.join(result_dir, 'model_3.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':
