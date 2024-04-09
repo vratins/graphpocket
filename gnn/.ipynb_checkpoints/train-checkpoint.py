@@ -29,132 +29,194 @@ from model import ReceptorEncoderGVP, con_loss, get_batch_idx
 sys.path.append('~/graphpocket/gnn')
 
 def get_args():
-    parser = argparse.ArgumentParser('python')
+    parser_config = argparse.ArgumentParser()
 
-    parser.add_argument('--resume',
+    parser_config.add_argument('--config',
                         required=False,
-                        default=False,
-                        type=bool,
-                        help='True if you have a model saved in the result directory')
+                        default=None,
+                        type=str)
 
-    parser.add_argument('--config',
-                        required=False,
-                        default='graphpocket/config/config.yaml',
-                        type=str,
+    config_true, _ = parser_config.parse_known_args()
+    if config_true.config:
+        return parser_config.parse_args()
+    else:
+
+        parser = argparse.ArgumentParser()
+        
+        parser.add_argument('--resume',
+                            required=False,
+                            default=False,
+                            type=bool,
+                            help='True if you have a model saved in the result directory')
+        
+        #directories
+        parser.add_argument('--pockets',required=False,default='~/dataset_graph/data',type=str)
+        parser.add_argument('--pos_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list',type=str)
+        parser.add_argument('--neg_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list',type=str)
+        parser.add_argument('--cluster_map',required=False,default='~/graphpocket/cluster_map.pkl',type=str)
+        parser.add_argument('--result_dir',required=False,default='~/graphpocket/results' ,type=str)
     
-    #directories
-    parser.add_argument('--pockets',required=False,default='~/dataset_graph/data',type=str)
-    parser.add_argument('--pos_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list',type=str)
-    parser.add_argument('--neg_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list',type=str)
-    parser.add_argument('--cluster_map',required=False,default='~/graphpocket/cluster_map.pkl',type=str)
-    parser.add_argument('--results_dir',required=False,default='~/graphpocket/results' ,type=str)
-
-    #graph construction
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-
-    #model config
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-
-    #loss margin and config
-    parser.add_argument('',required=,default=,type=)
-
-    #train arguments
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-
-    #optimizer
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-
-    #scheduler
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-    parser.add_argument('',required=,default=,type=)
-
-    return parser.parse_args()
+        #graph construction
+        parser.add_argument('--knn_k',required=False,default=10,type=int)
+        parser.add_argument('--algorithm',required=False,default='bruteforce-blas',type=str)
+    
+        #model config
+        parser.add_argument('--input_scalar_size', required=False, default=4, type=int, help='Input scalar size')
+        parser.add_argument('--output_scalar_size', required=False, default=64, type=int, help='Output scalar size')
+        parser.add_argument('--vector_size', required=False, default=16, type=int, help='Vector size')
+        parser.add_argument('--n_convs', required=False, default=3, type=int, help='Number of convolutions')
+        parser.add_argument('--dropout', required=False, default=0.25, type=float, help='Dropout rate')
+        parser.add_argument('--vector_gating', required=False, default=True, type=bool, help='Enable vector gating')
+        parser.add_argument('--xavier_init', required=False, default=True, type=bool, help='Enable Xavier initialization')
+    
+    
+        #loss margin and config
+        parser.add_argument('--loss_margin',required=False,default=1.0,type=float)
+    
+        #train arguments
+        parser.add_argument('--n_epochs', required=False, default=100, type=int, help='Number of epochs')
+        parser.add_argument('--batch_size', required=False, default=128, type=int, help='Batch size')
+        parser.add_argument('--n_workers', required=False, default=6, type=int, help='Number of workers')
+        
+        #optimizer parameters
+        parser.add_argument('--optimizer_type', required=False, default='Adam', type=str, help='Optimizer type')
+        parser.add_argument('--lr', required=False, default=0.001, type=float, help='Learning rate')
+        parser.add_argument('--weight_decay', required=False, default=0.000001, type=float, help='Weight decay')
+        
+        #scheduler parameters
+        parser.add_argument('--scheduler_type', required=False, default="StepLR", type=str, help='Scheduler type')
+        parser.add_argument('--step_size', required=False, default=20, type=int, help='Step size for StepLR scheduler')
+        parser.add_argument('--gamma', required=False, default=0.1, type=float, help='Gamma for StepLR scheduler')
+    
+        return parser.parse_args()
 
 def main():
 
     args = get_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    with open('graphpocket/config/config.yaml') as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    if 'config' in args:
+        with open('graphpocket/config/config.yaml') as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+            
+        #read in directories from config
+        pocket_dir = os.path.expanduser(config['directories']['pockets'])
+        pos_list = os.path.expanduser(config['directories']['pos_list'])
+        neg_list = os.path.expanduser(config['directories']['neg_list'])
+        seq_cluster_map = os.path.expanduser(config['directories']['cluster_map'])
+        result_dir = os.path.expanduser(config['directories']['result_dir'])
+
+        #train params
+        train_config = config['train']
+        batch_size, n_workers, epochs = train_config['batch_size'], train_config['n_workers'], train_config['n_epochs']
+
+        #model params
+        loss_margin = config['loss']['margin']
+        model_config = config['model']
+        in_scalar_size=model_params['input_scalar_size']
+        out_scalar_size=model_params['output_scalar_size']
+        vector_size=model_params['vector_size']
+        n_convs=model_params['n_convs']
+        dropout=model_params['dropout']
+
+        opt_config = config['train']['optimizer']
+        opt_type = optimizer_config['type']
+        lr=optimizer_config['lr']
+        weight_decay=optimizer_config['weight_decay']
+
+        sched_config = config['train']['scheduler']
+        scheduler_type = scheduler_config['type']
+        params = scheduler_config['params']
+        step_size=params['step_size']
+        gamma=params['gamma']
+
+        knn_k = config['graph']['threshold_k']
+        algorithm = config['graph']['algorithm']
+
+    else:
+        
+        pocket_dir = os.path.expanduser(args.pockets)
+        pos_list = os.path.expanduser(args.pos_list)
+        neg_list = os.path.expanduser(args.neg_list)
+        seq_cluster_map = os.path.expanduser(args.cluster_map)
+        result_dir = os.path.expanduser(args.result_dir)
+
+        #train params
+        batch_size = args.batch_size
+        n_workers = args.n_workers
+        epochs = args.n_epochs
+
+        #model params
+        loss_margin = args.loss_margin
+        in_scalar_size= args.input_scalar_size
+        out_scalar_size= args.output_scalar_size
+        vector_size= args.vector_size
+        n_convs= args.n_convs
+        dropout= args.dropout
+
+        opt_type = args.optimizer_type
+        lr= args.lr
+        weight_decay= args.weight_decay
+
+        scheduler_type = args.scheduler_type
+        step_size= args.step_size
+        gamma= args.gamma
+
+        knn_k = args.knn_k
+        algorithm = args.algorithm
+        
 
     #set random seed manually
     torch.manual_seed(42)
     torch.cuda.empty_cache()
 
-    #create train and test datasets [log the paths in config] -- make all from config?
-    pocket_dir = os.path.expanduser(config['directories']['pockets'])
-    pos_list = os.path.expanduser(config['directories']['pos_list'])
-    neg_list = os.path.expanduser(config['directories']['neg_list'])
-    seq_cluster_map = os.path.expanduser(config['directories']['cluster_map'])
-    result_dir = os.path.expanduser(config['directories']['result_dir'])
-
-    #model and train parameters
-    train_config = config['train']
-    batch_size, n_workers, epochs = train_config['batch_size'], train_config['n_workers'], train_config['n_epochs']
-
-    def get_optimizer(model_parameters, optimizer_config):
-        if optimizer_config['type'] == 'Adam':
-            return Adam(model_parameters, lr=optimizer_config['lr'], weight_decay=optimizer_config['weight_decay'])
+    def get_optimizer(model_parameters, opt_type, lr, weight_decay):
+        if opt_type == 'Adam':
+            return Adam(model_parameters, lr=lr, weight_decay=weight_decay)
         else:
-            raise ValueError(f"Unsupported optimizer type: {optimizer_config['type']}")
+            raise ValueError(f"Unsupported optimizer type: {opt_type}")
 
-    def get_scheduler(optimizer, scheduler_config):
-        if scheduler_config['type'] == "StepLR":
-            params = scheduler_config['params']
-            return StepLR(optimizer, step_size=params['step_size'], gamma=params['gamma'])
+    def get_scheduler(optimizer, scheduler_type, step_size, gamma):
+        if scheduler_type == "StepLR":
+            return StepLR(optimizer, step_size=step_size, gamma=gamma)
         else:
-            raise ValueError(f"Unsupported scheduler type: {scheduler_config['type']}")
+            raise ValueError(f"Unsupported scheduler type: {scheduler_type}")
         
-    loss_margin = config['loss']['margin']
+    loss_margin = args.loss_margin
 
-    def initialize_model(model_params, resume=False, saved_model_path=os.path.join(result_dir, 'model.pth.tar')):
+    model = ReceptorEncoderGVP(
+        in_scalar_size=in_scalar_size,
+        out_scalar_size=out_scalar_size,
+        vector_size=vector_size,
+        n_convs=n_convs,
+        dropout=dropout,
+    )
+        
+    if args.resume:
+        if not os.path.exists(saved_model_path):
+            raise FileNotFoundError(f"The saved model file was not found at {os.path.join(result_dir, 'model.pth.tar')}")
+        
+        state_dict = torch.load(saved_model_path, map_location=torch.device('cpu'))
+        model.load_state_dict(state_dict)
+    else:
         model = ReceptorEncoderGVP(
-            in_scalar_size=model_params['input_scalar_size'],
-            out_scalar_size=model_params['output_scalar_size'],
-            vector_size=model_params['vector_size'],
-            n_convs=model_params['n_convs'],
-            dropout=model_params['dropout'],
-        )
+        in_scalar_size=in_scalar_size,
+        out_scalar_size=out_scalar_size,
+        vector_size=vector_size,
+        n_convs=n_convs,
+        dropout=dropout,
+    )
         
-        if resume:
-            if not os.path.exists(saved_model_path):
-                raise FileNotFoundError(f"The saved model file was not found at {saved_model_path}")
-            
-            state_dict = torch.load(saved_model_path, map_location=torch.device('cpu'))
-            model.load_state_dict(state_dict)
-        
-        return model
-
-    model_config = config['model']
-    model = initialize_model(model_config, args.resume)
-
     model.to(device)
 
-    opt_config = config['train']['optimizer']
-    optimizer = get_optimizer(model.parameters(), opt_config)
-
-    sched_config = config['train']['scheduler']
-    scheduler = get_scheduler(optimizer, sched_config)
+    optimizer = get_optimizer(model.parameters(), opt_type, lr, weight_decay)
+    scheduler = get_scheduler(optimizer, scheduler_type, step_size, gamma)
 
     #wandb
-    wandb.init(project="graphpocket", config=config)
+    wandb.init(project="graphpocket")
 
     #model_params
     print("Created model, now reading pockets into graphs..")
-    knn_k = config['graph']['threshold_k']
-    algorithm = config['graph']['algorithm']
 
     if os.path.exists(os.path.join(pocket_dir, 'train_dataset1.pkl')):
         with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'rb') as f:
