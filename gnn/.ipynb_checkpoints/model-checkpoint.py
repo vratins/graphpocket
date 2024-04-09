@@ -11,7 +11,8 @@ from typing import List, Tuple, Union, Dict
 
 import math
 
-#gvp
+#gvp adapted from https://github.com/drorlab/gvp-pytorch
+#receptor encoder from https://github.com/Dunni3/keypoint-diffusion/blob/main/models/receptor_encoder_gvp.py
 
 def exists(val):
     return val is not None

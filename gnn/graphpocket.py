@@ -16,12 +16,12 @@ class Unparsable(Exception):
 class GraphPocket:
 #callable class to read a pocket and output the graph
     
-    def __init__(self):
+    def __init__(self, k, algorithm):
 
         #hard code element map and k for graph
         self.rec_elements = {'C': 0, 'N': 1, 'O': 2, 'S': 3, 'other':4}
-        self.threshold_k = 3
-        self.algorithm = 'bruteforce-blas'
+        self.threshold_k = k
+        self.algorithm = algorithm
 
     def __call__(self, pocket_path):
 

@@ -1,4 +1,4 @@
-##directories
+##directories and graph build
 
 directories:
   pockets: '~/dataset_graph/data'
@@ -7,14 +7,18 @@ directories:
   cluster_map: '~/graphpocket/cluster_map.pkl'
   result_dir: '~/graphpocket/results'
 
+graph:
+  threshold_k: 10
+  algorithm: 'bruteforce-blas'
+
 ##model config
 
 model:
   input_scalar_size: 4
-  output_scalar_size: 128
+  output_scalar_size: 64
   vector_size: 16
   n_convs: 3
-  dropout: 0.2
+  dropout: 0.25
   vector_gating: true
   xavier_init: true
 
@@ -30,16 +34,13 @@ train:
 
   optimizer:
     type: 'Adam'
-    lr: 0.01
-    weight_decay: 0.00001
+    lr: 0.001
+    weight_decay: 0.000001
   
   scheduler:
     type: "StepLR"
     params:
-      step_size: 20
+      step_size: 30
       gamma: 0.1
-
-
-
-
-
+      
+#wandb sweep args: dropout, margin, lr, weight_decay, step_size, gamma, n_convs

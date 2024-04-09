@@ -12,8 +12,12 @@ import dgl
 from dgl.dataloading import GraphDataLoader
 import torch
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from torch_scatter import scatter_mean
+import torch.nn.functional as F
+
+
+from sklearn.metrics import roc_curve, auc
 
 import wandb
 from tqdm import tqdm
@@ -27,11 +31,54 @@ sys.path.append('~/graphpocket/gnn')
 def get_args():
     parser = argparse.ArgumentParser('python')
 
-    parser.add_argument('-resume',
+    parser.add_argument('--resume',
                         required=False,
                         default=False,
                         type=bool,
                         help='True if you have a model saved in the result directory')
+
+    parser.add_argument('--config',
+                        required=False,
+                        default='graphpocket/config/config.yaml',
+                        type=str,
+    
+    #directories
+    parser.add_argument('--pockets',required=False,default='~/dataset_graph/data',type=str)
+    parser.add_argument('--pos_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_positive.list',type=str)
+    parser.add_argument('--neg_list',required=False,default='~/dataset_graph/TOUGH-M1/TOUGH-M1_negative.list',type=str)
+    parser.add_argument('--cluster_map',required=False,default='~/graphpocket/cluster_map.pkl',type=str)
+    parser.add_argument('--results_dir',required=False,default='~/graphpocket/results' ,type=str)
+
+    #graph construction
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+
+    #model config
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+
+    #loss margin and config
+    parser.add_argument('',required=,default=,type=)
+
+    #train arguments
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+
+    #optimizer
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+
+    #scheduler
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
+    parser.add_argument('',required=,default=,type=)
 
     return parser.parse_args()
 
@@ -104,16 +151,20 @@ def main():
     #wandb
     wandb.init(project="graphpocket", config=config)
 
+    #model_params
     print("Created model, now reading pockets into graphs..")
+    knn_k = config['graph']['threshold_k']
+    algorithm = config['graph']['algorithm']
 
-    if os.path.exists(os.path.join(pocket_dir, 'train_dataset.pkl')):
+    if os.path.exists(os.path.join(pocket_dir, 'train_dataset1.pkl')):
         with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'rb') as f:
             train_dataset = pickle.load(f)
         with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'rb') as f:
             test_dataset = pickle.load(f)
 
     else:
-        train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, fold_nr=0, type='seq')
+        train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, 
+                                                     knn_k, algorithm, fold_nr=0, split_type='seq')
         with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'wb') as f:
             pickle.dump(train_dataset, f)
         with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'wb') as f:
@@ -127,35 +178,6 @@ def main():
     print("Size of test dataset: ", len(test_dataloader)*batch_size, "pairs") 
 
     #train func 
-    s=1024*1024
-    # model.train()
-    # epoch_train_losses = []
-    # for epoch in range(epochs):
-    #     for batch_idx, ((graph1, graph2), label) in enumerate(train_dataloader):
-    #         if batch_idx==100:
-    #             break
-    #         torch.cuda.reset_peak_memory_stats(device)    
-    #         print((torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated()), torch.cuda.max_memory_allocated()/s)
-    #         graph1, graph2, label = graph1.to(device), graph2.to(device), label.to(device)
-            
-    #         batch_indx1 = get_batch_idx(graph1).to(device)
-    #         batch_indx2 = get_batch_idx(graph2).to(device)
-    #         optimizer.zero_grad()
-            
-    #         output1 = model(graph1, batch_indx1)
-    #         output2 = model(graph2, batch_indx2)
-        
-    #         loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
-
-    #         print(loss.item())
-
-    #         loss.backward()
-    #         optimizer.step()
-    #         continue
-
-    #     break
-
-
     def train(epoch):
         model.train()
         losses, pos_dists, neg_dists = [], [], []    
@@ -188,7 +210,7 @@ def main():
     #test func
     def test(epoch):
         model.eval()        
-        losses, pos_dists, neg_dists = [],[],[]
+        all_dists, all_labels = [], []
 
         progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f"Test Epoch: {epoch+1}")
 
@@ -203,36 +225,35 @@ def main():
                 output1 = model(graph1, batch_indx1)
                 output2 = model(graph2, batch_indx2)
                 
-                loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
+                dists = F.pairwise_distance(output1, output2).view(-1)
+                all_dists.extend(dists.cpu().numpy())
+                all_labels.extend(label.cpu().numpy())
 
-                losses.append(loss.item())
-                pos_dists.extend(pos_dist.cpu().numpy().tolist())
-                neg_dists.extend(neg_dist.cpu().numpy().tolist()) 
 
-        return {'loss' : np.mean(losses), 'pos_dist' : np.mean(pos_dists), 'neg_dist' : np.mean(neg_dists)}
+        all_dists = np.array(all_dists)
+        all_labels = np.array(all_labels)
+        
+        fpr, tpr, _ = roc_curve(1-all_labels, all_dists) #1-labels as higher distances is technically good for label 0 and roc wants probs
+        roc_auc = auc(fpr, tpr)
+
+        return {'AUC' : roc_auc}
 
     #epoch loop
-    epoch_train_losses = []
-    epoch_test_losses = []
 
     for epoch in range(epochs):  
         print("starting training runs")
         train_metrics = train(epoch)
-        epoch_train_losses.append(train_metrics['loss'])
         wandb.log({'train_loss': train_metrics['loss'], 
                    'train_pos_dist': train_metrics['pos_dist'], 
                    'train_neg_dist': train_metrics['neg_dist'],
                    'epoch': epoch+1})
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_metrics['loss']:.4f}")
 
-        if (epoch+1)%2==0:
-            test_metrics = test(epoch)
-            epoch_test_losses.append(test_metrics['loss'])
-            wandb.log({'test_loss': test_metrics['loss'], 
-                        'test_pos_dist': test_metrics['pos_dist'], 
-                        'test_neg_dist': test_metrics['neg_dist'],
-                        'epoch': epoch+1})
-            print(f"Epoch {epoch+1}/{epochs}, Test Loss: {test_metrics['loss']:.4f}")
+
+        test_metrics = test(epoch)
+        wandb.log({'AUC of ROC Curve': test_metrics['AUC'],
+                  'epoch': epoch+1})
+        print(f"Epoch {epoch+1}/{epochs}, Test AUC: {test_metrics['AUC']:.4f}")
 
         scheduler.step() 
 
@@ -243,7 +264,7 @@ def main():
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model_3.pth.tar'))
+            os.path.join(result_dir, 'model_auc.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':
