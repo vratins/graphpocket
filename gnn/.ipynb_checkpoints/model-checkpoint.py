@@ -53,8 +53,8 @@ class GVP(nn.Module):
         hidden_vectors = None,
         feats_activation = nn.SiLU(),
         vectors_activation = nn.Sigmoid(),
-        vector_gating = True,
-        xavier_init = False
+        vector_gating = False,
+        xavier_init = True
     ):
         super().__init__()
         self.dim_vectors_in = dim_vectors_in
@@ -173,7 +173,7 @@ class GVPEdgeConv(nn.Module):
                   scalar_activation=nn.SiLU, vector_activation=nn.Sigmoid,
                   n_message_gvps: int = 1, n_update_gvps: int = 1,
                   rbf_dmax: float = 3.5, rbf_dim: int = 16,
-                  edge_feat_size: int = 0, message_norm: Union[float, str] = 4, dropout: float = 0.0,):
+                  edge_feat_size: int = 0, message_norm: Union[float, str] = 24, dropout: float = 0.0,):
         
         super().__init__()
 
@@ -222,7 +222,7 @@ class GVPEdgeConv(nn.Module):
                     dim_feats_out=scalar_size, 
                     feats_activation=scalar_activation(), 
                     vectors_activation=vector_activation(), 
-                    vector_gating=True)
+                    vector_gating=False)
             )
         self.node_update = nn.Sequential(*update_gvps)
 
@@ -315,12 +315,13 @@ class ReceptorEncoderGVP(nn.Module):
 
     def __init__(self, 
                  in_scalar_size: int, 
-                 out_scalar_size: int = 128, 
+                 out_scalar_size: int = 128,
+                 edge_feat_size: int = 1,
                  n_message_gvps: int = 1,
                  n_update_gvps: int = 1,
                  vector_size: int = 16,
                  n_convs: int = 3, 
-                 message_norm: Union[float, str] = 10, 
+                 message_norm: Union[float, str] = 24, 
                  dropout: float = 0.0,
                  rbf_dmax: float = 3.5):
         super().__init__()
@@ -350,7 +351,7 @@ class ReceptorEncoderGVP(nn.Module):
         )
         self.scalar_norm = nn.LayerNorm(out_scalar_size)
 
-        edge_feat_size = 1
+        self.edge_feat_size = edge_feat_size
 
         # create rec-rec convolutional layers
         self.rec_conv_layers = nn.ModuleList()
@@ -391,6 +392,10 @@ class ReceptorEncoderGVP(nn.Module):
         if self.message_norm == 'mean':
             # set z to 1. the receptor convolutional layer will use mean aggregation instead of sum
             z = 1
+        elif self.message_norm == 0:
+            # if messsage_norm is 0, we normalize by the average in-degree of the graph
+            z = g.batch_num_edges() / g.batch_num_nodes()
+            z = z[batch_idx].view(-1, 1)
         else:
             z = self.message_norm
 

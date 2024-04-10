@@ -6,6 +6,7 @@ import sys
 import time
 import yaml
 import os
+from typing import Union
 
 import numpy as np
 import dgl
@@ -30,6 +31,12 @@ sys.path.append('~/graphpocket/gnn')
 
 def get_args():
     parser_config = argparse.ArgumentParser()
+
+    parser_config.add_argument('--resume',
+                            required=False,
+                            default=False,
+                            type=bool,
+                            help='True if you have a model saved in the result directory')
 
     parser_config.add_argument('--config',
                         required=False,
@@ -63,9 +70,11 @@ def get_args():
         #model config
         parser.add_argument('--input_scalar_size', required=False, default=4, type=int, help='Input scalar size')
         parser.add_argument('--output_scalar_size', required=False, default=64, type=int, help='Output scalar size')
+        parser.add_argument('--edge_feat_size', required=False, default=1, type=int, help='Edge feature size')
         parser.add_argument('--vector_size', required=False, default=16, type=int, help='Vector size')
         parser.add_argument('--n_convs', required=False, default=3, type=int, help='Number of convolutions')
         parser.add_argument('--dropout', required=False, default=0.25, type=float, help='Dropout rate')
+        parser.add_argument('--message_norm', required=False, default=24, help='Message Norm')
         parser.add_argument('--vector_gating', required=False, default=True, type=bool, help='Enable vector gating')
         parser.add_argument('--xavier_init', required=False, default=True, type=bool, help='Enable Xavier initialization')
     
@@ -112,21 +121,23 @@ def main():
 
         #model params
         loss_margin = config['loss']['margin']
-        model_config = config['model']
-        in_scalar_size=model_params['input_scalar_size']
-        out_scalar_size=model_params['output_scalar_size']
-        vector_size=model_params['vector_size']
-        n_convs=model_params['n_convs']
-        dropout=model_params['dropout']
+        model_params = config['model']
+        in_scalar_size = model_params['input_scalar_size']
+        out_scalar_size = model_params['output_scalar_size']
+        edge_feat_size = model_params['edge_feat_size']
+        vector_size = model_params['vector_size']
+        message_norm = model_params['message_norm']
+        n_convs = model_params['n_convs']
+        dropout = model_params['dropout']
 
         opt_config = config['train']['optimizer']
-        opt_type = optimizer_config['type']
-        lr=optimizer_config['lr']
-        weight_decay=optimizer_config['weight_decay']
+        opt_type = opt_config['type']
+        lr=opt_config['lr']
+        weight_decay=opt_config['weight_decay']
 
         sched_config = config['train']['scheduler']
-        scheduler_type = scheduler_config['type']
-        params = scheduler_config['params']
+        scheduler_type = sched_config['type']
+        params = sched_config['params']
         step_size=params['step_size']
         gamma=params['gamma']
 
@@ -151,8 +162,10 @@ def main():
         in_scalar_size= args.input_scalar_size
         out_scalar_size= args.output_scalar_size
         vector_size= args.vector_size
+        edge_feat_size = args.edge_feat_size
         n_convs= args.n_convs
         dropout= args.dropout
+        message_norm = args.message_norm
 
         opt_type = args.optimizer_type
         lr= args.lr
@@ -164,6 +177,8 @@ def main():
 
         knn_k = args.knn_k
         algorithm = args.algorithm
+
+        loss_margin = args.loss_margin
         
 
     #set random seed manually
@@ -182,16 +197,6 @@ def main():
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_type}")
         
-    loss_margin = args.loss_margin
-
-    model = ReceptorEncoderGVP(
-        in_scalar_size=in_scalar_size,
-        out_scalar_size=out_scalar_size,
-        vector_size=vector_size,
-        n_convs=n_convs,
-        dropout=dropout,
-    )
-        
     if args.resume:
         if not os.path.exists(saved_model_path):
             raise FileNotFoundError(f"The saved model file was not found at {os.path.join(result_dir, 'model.pth.tar')}")
@@ -200,11 +205,13 @@ def main():
         model.load_state_dict(state_dict)
     else:
         model = ReceptorEncoderGVP(
-        in_scalar_size=in_scalar_size,
-        out_scalar_size=out_scalar_size,
-        vector_size=vector_size,
-        n_convs=n_convs,
-        dropout=dropout,
+        in_scalar_size = in_scalar_size,
+        out_scalar_size = out_scalar_size,
+        edge_feat_size = edge_feat_size,
+        vector_size = vector_size,
+        n_convs = n_convs,
+        dropout = dropout,
+        message_norm = float(message_norm)
     )
         
     model.to(device)
@@ -326,7 +333,7 @@ def main():
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model_auc.pth.tar'))
+            os.path.join(result_dir, 'model.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':

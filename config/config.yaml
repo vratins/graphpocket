@@ -14,33 +14,35 @@ graph:
 ##model config
 
 model:
-  input_scalar_size: 4
-  output_scalar_size: 64
+  input_scalar_size: 24
+  output_scalar_size: 128
+  edge_feat_size: 1
   vector_size: 16
-  n_convs: 3
-  dropout: 0.25
+  n_convs: 4
+  dropout: 0.3
+  message_norm: 24
   vector_gating: true
   xavier_init: true
 
 loss:
-  margin: 1.0
+  margin: 1.2
 
 ##train config and hyperparameters
 
 train:
   n_epochs: 100
-  batch_size: 128
+  batch_size: 64
   n_workers: 6
 
   optimizer:
     type: 'Adam'
-    lr: 0.001
-    weight_decay: 0.000001
+    lr: 0.005
+    weight_decay: 0.0001
   
   scheduler:
     type: "StepLR"
     params:
-      step_size: 30
-      gamma: 0.1
+      step_size: 25
+      gamma: 0.2
       
 #wandb sweep args: dropout, margin, lr, weight_decay, step_size, gamma, n_convs

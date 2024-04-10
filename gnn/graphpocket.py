@@ -20,13 +20,17 @@ class GraphPocket:
 
         #hard code element map and k for graph
         self.rec_elements = {'C': 0, 'N': 1, 'O': 2, 'S': 3, 'other':4}
+        self.rec_residues = {'SER': 0, 'HIS': 1, 'GLU': 2, 'TRP': 3, 'VAL': 4, 
+                             'PRO': 5, 'GLY': 6, 'ILE': 7, 'THR': 8, 'LYS': 9, 
+                             'PHE': 10, 'TYR': 11, 'MET': 12, 'LEU': 13, 'ARG': 14, 
+                             'ASP': 15, 'ASN': 16, 'GLN': 17, 'ALA': 18, 'CYS': 19}
         self.threshold_k = k
         self.algorithm = algorithm
 
     def __call__(self, pocket_path):
 
         pocket = parse_pocket(pocket_path)
-        positions, features, residues = get_pocket_atoms(pocket, self.rec_elements)
+        positions, features, residues = get_pocket_atoms(pocket, self.rec_elements, self.rec_residues)
 
         graph = build_pocket_graph(positions, features, residues, self.threshold_k, self.algorithm)
 
@@ -44,12 +48,14 @@ def parse_pocket(pocket_path): #reads in pdb file of a receptor(binding pocket) 
     return receptor
 
 #function to return atom positions, features
-def get_pocket_atoms(rec_atoms, element_map):
+def get_pocket_atoms(rec_atoms, element_map, residue_map):
 
     #position, features and indices for all pocket atoms
     rec_atom_positions = rec_atoms.getCoords()
     rec_res_indices = rec_atoms.getResindices()
-    rec_atom_features, other_atoms_mask = receptor_featurizer(element_map=element_map, rec_atoms=rec_atoms)
+    rec_resnames = rec_atoms.getResnames()
+    rec_atom_features, other_atoms_mask = receptor_featurizer(element_map=element_map, res_map = residue_map,
+                                                              rec_atoms=rec_atoms, rec_resnames=rec_resnames)
 
     #convert positions and features to tensors
     rec_atom_positions = torch.tensor(rec_atom_positions).float()
@@ -65,7 +71,7 @@ def get_pocket_atoms(rec_atoms, element_map):
 
 
 #function to featurize the receptor atoms
-def receptor_featurizer(element_map, rec_atoms, protein_atom_elements = None):
+def receptor_featurizer(element_map, res_map, rec_atoms, rec_resnames, protein_atom_elements = None):
 
     if rec_atoms is None and protein_atom_elements is None:
         raise ValueError
@@ -82,7 +88,12 @@ def receptor_featurizer(element_map, rec_atoms, protein_atom_elements = None):
     #remove "other" category from onehot_elements, assuming they are last in the one-hot encoding
     protein_atom_features = onehot_elements[:, :-1]
 
-    return protein_atom_features, other_atoms_mask
+    #residue one-hot:
+    onehot_residues = one_hot_encode(rec_resnames, res_map)
+
+    concat_features = np.concatenate((protein_atom_features, onehot_residues), axis=1)
+
+    return concat_features, other_atoms_mask
 
 
 #function to one-hot encode all atoms of the receptor

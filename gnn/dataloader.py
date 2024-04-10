@@ -29,7 +29,7 @@ class GraphTupleDataset(dgl.data.DGLDataset):
         self.pos_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
                                     tqdm(pos_list, desc=f"Filtering {name} pos_list")))
         self.neg_list = list(filter(lambda p: p[0] in self.pocket_list and p[1] in self.pocket_list, 
-                                    tqdm(neg_list, desc=f"Filtering {name} neg_list")))
+                                    tqdm(neg_list, desc=f"Filtering {name} neg_list ha")))
 
         self.graphs = []
         self.labels = []

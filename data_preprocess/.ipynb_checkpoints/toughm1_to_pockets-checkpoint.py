@@ -36,7 +36,7 @@ def find_residue(protein_path, pocket_path, output_path):
 
     #threshold of 0.1-0.3 A should give us the exact residues of the pocket
     for pocket_atom in pocket_atoms:
-        close_atoms = searcher.search(pocket_atom.coord, 2.0, 'A')
+        close_atoms = searcher.search(pocket_atom.coord, 1.0, 'A')
         for atom in close_atoms:
             intersecting_residues.add(atom.get_parent())
 
