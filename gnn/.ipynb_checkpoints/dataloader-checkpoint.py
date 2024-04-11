@@ -68,7 +68,7 @@ class GraphTupleDataset(dgl.data.DGLDataset):
 
 #function for dataloading tuples of the pockets from pocket lists - used to get dataloader from a dataset class
 
-def create_dataset(pos_path, neg_path, pocket_path, seq_file, k, algorithm, fold_nr, split_type, n_folds=4, seed=42):
+def create_dataset(pos_path, neg_path, pocket_path, seq_file, k, algorithm, fold_nr, split_type, n_folds=5, seed=42):
     
     #load in the list of pocket and corresponding sequence clusters
     with open(seq_file, 'rb') as file:

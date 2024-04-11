@@ -53,7 +53,7 @@ class GVP(nn.Module):
         hidden_vectors = None,
         feats_activation = nn.SiLU(),
         vectors_activation = nn.Sigmoid(),
-        vector_gating = False,
+        vector_gating = True,
         xavier_init = True
     ):
         super().__init__()
@@ -222,7 +222,7 @@ class GVPEdgeConv(nn.Module):
                     dim_feats_out=scalar_size, 
                     feats_activation=scalar_activation(), 
                     vectors_activation=vector_activation(), 
-                    vector_gating=False)
+                    vector_gating=True)
             )
         self.node_update = nn.Sequential(*update_gvps)
 
@@ -399,7 +399,7 @@ class ReceptorEncoderGVP(nn.Module):
         else:
             z = self.message_norm
 
-        # apply receptor-receptor convolutions
+        #apply receptor convolutions
         for i in range(self.n_convs):
             rec_feats = (rec_scalar_feat, rec_coord_feat, rec_vec_feat)
             rec_scalar_feat, rec_vec_feat = self.rec_conv_layers[i](g, rec_feats=rec_feats, edge_feats=edge_feat, z=z)

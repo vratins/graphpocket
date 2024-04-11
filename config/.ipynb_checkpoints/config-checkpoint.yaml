@@ -8,18 +8,20 @@ directories:
   result_dir: '~/graphpocket/results'
 
 graph:
-  threshold_k: 10
+  threshold_k: 6
   algorithm: 'bruteforce-blas'
 
 ##model config
 
 model:
   input_scalar_size: 24
-  output_scalar_size: 128
+  output_scalar_size: 64
   edge_feat_size: 1
   vector_size: 16
-  n_convs: 4
-  dropout: 0.3
+  n_message_gvps: 1
+  n_update_gvps: 1
+  n_convs: 2
+  dropout: 0.25
   message_norm: 24
   vector_gating: true
   xavier_init: true
@@ -36,13 +38,13 @@ train:
 
   optimizer:
     type: 'Adam'
-    lr: 0.005
-    weight_decay: 0.0001
+    lr: 0.05
+    weight_decay: 0.00001
   
   scheduler:
     type: "StepLR"
     params:
-      step_size: 25
-      gamma: 0.2
+      step_size: 20
+      gamma: 0.1
       
 #wandb sweep args: dropout, margin, lr, weight_decay, step_size, gamma, n_convs

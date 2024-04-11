@@ -68,10 +68,12 @@ def get_args():
         parser.add_argument('--algorithm',required=False,default='bruteforce-blas',type=str)
     
         #model config
-        parser.add_argument('--input_scalar_size', required=False, default=4, type=int, help='Input scalar size')
+        parser.add_argument('--input_scalar_size', required=False, default=24, type=int, help='Input scalar size')
         parser.add_argument('--output_scalar_size', required=False, default=64, type=int, help='Output scalar size')
         parser.add_argument('--edge_feat_size', required=False, default=1, type=int, help='Edge feature size')
         parser.add_argument('--vector_size', required=False, default=16, type=int, help='Vector size')
+        parser.add_argument('--n_message_gvps', required=False, default=1, type=int)
+        parser.add_argument('--n_update_gvps', required=False, default=1, type=int)
         parser.add_argument('--n_convs', required=False, default=3, type=int, help='Number of convolutions')
         parser.add_argument('--dropout', required=False, default=0.25, type=float, help='Dropout rate')
         parser.add_argument('--message_norm', required=False, default=24, help='Message Norm')
@@ -84,13 +86,13 @@ def get_args():
     
         #train arguments
         parser.add_argument('--n_epochs', required=False, default=100, type=int, help='Number of epochs')
-        parser.add_argument('--batch_size', required=False, default=128, type=int, help='Batch size')
+        parser.add_argument('--batch_size', required=False, default=64, type=int, help='Batch size')
         parser.add_argument('--n_workers', required=False, default=6, type=int, help='Number of workers')
         
         #optimizer parameters
         parser.add_argument('--optimizer_type', required=False, default='Adam', type=str, help='Optimizer type')
         parser.add_argument('--lr', required=False, default=0.001, type=float, help='Learning rate')
-        parser.add_argument('--weight_decay', required=False, default=0.000001, type=float, help='Weight decay')
+        parser.add_argument('--weight_decay', required=False, default=0.00001, type=float, help='Weight decay')
         
         #scheduler parameters
         parser.add_argument('--scheduler_type', required=False, default="StepLR", type=str, help='Scheduler type')
@@ -125,6 +127,8 @@ def main():
         in_scalar_size = model_params['input_scalar_size']
         out_scalar_size = model_params['output_scalar_size']
         edge_feat_size = model_params['edge_feat_size']
+        n_message_gvps = model_params['n_message_gvps']
+        n_update_gvps = model_params['n_update_gvps']
         vector_size = model_params['vector_size']
         message_norm = model_params['message_norm']
         n_convs = model_params['n_convs']
@@ -162,6 +166,8 @@ def main():
         in_scalar_size= args.input_scalar_size
         out_scalar_size= args.output_scalar_size
         vector_size= args.vector_size
+        n_message_gvps = args.n_message_gvps
+        n_update_gvps = args.n_update_gvps
         edge_feat_size = args.edge_feat_size
         n_convs= args.n_convs
         dropout= args.dropout
@@ -208,6 +214,8 @@ def main():
         in_scalar_size = in_scalar_size,
         out_scalar_size = out_scalar_size,
         edge_feat_size = edge_feat_size,
+        n_message_gvps = n_message_gvps,
+        n_update_gvps = n_update_gvps,
         vector_size = vector_size,
         n_convs = n_convs,
         dropout = dropout,
@@ -220,7 +228,7 @@ def main():
     scheduler = get_scheduler(optimizer, scheduler_type, step_size, gamma)
 
     #wandb
-    wandb.init(project="graphpocket")
+    wandb.init(project="graphpocket", config=config)
 
     #model_params
     print("Created model, now reading pockets into graphs..")
@@ -233,7 +241,7 @@ def main():
 
     else:
         train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, 
-                                                     knn_k, algorithm, fold_nr=0, split_type='seq')
+                                                     knn_k, algorithm, fold_nr=0, split_type='random')
         with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'wb') as f:
             pickle.dump(train_dataset, f)
         with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'wb') as f:
