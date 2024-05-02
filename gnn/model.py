@@ -10,6 +10,7 @@ from torch_scatter import scatter_mean
 from typing import List, Tuple, Union, Dict
 
 import math
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #gvp adapted from https://github.com/drorlab/gvp-pytorch
 #receptor encoder from https://github.com/Dunni3/keypoint-diffusion/blob/main/models/receptor_encoder_gvp.py
@@ -413,8 +414,25 @@ class ReceptorEncoderGVP(nn.Module):
         
         return graph_features
 
+def stability_loss(feature_vector):
 
-def con_loss(output1, output2, labels, margin=1.0):
+    mean = 0
+    std_dev = 0.1
+    noise = torch.randn(feature_vector.shape, device=device) * std_dev + mean
+    norm = torch.linalg.norm(noise)
+    
+    max_norm = 2e-11
+    if norm > max_norm:
+        noise = noise * (max_norm / norm)
+
+    new_feature = feature_vector + noise
+
+    stab_loss = F.pairwise_distance(new_feature, feature_vector).pow(2).mean()
+
+    return stab_loss
+
+
+def con_loss(output1, output2, labels, margin=1.0, stab_loss_margin = 0.1):
 
     dists = F.pairwise_distance(output1, output2).view(-1)
     
@@ -423,7 +441,11 @@ def con_loss(output1, output2, labels, margin=1.0):
 
     loss_contrastive = torch.sum(pos_loss * labels + neg_loss * (1 - labels)) / labels.numel()
 
-    return loss_contrastive, dists[labels > 0.5].detach(), dists[labels < 0.5].detach()
+    stab_loss = stability_loss(output1) + stability_loss(output2)
+    total_loss = loss_contrastive + stab_loss*stab_loss_margin
+
+    return total_loss, dists[labels > 0.5].detach(), dists[labels < 0.5].detach()
+
 
 def get_batch_idx(g: dgl.DGLHeteroGraph) -> torch.Tensor:
         

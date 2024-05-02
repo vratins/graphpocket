@@ -9,42 +9,50 @@ directories:
 
 graph:
   threshold_k: 6
-  algorithm: 'bruteforce-blas'
+  algorithm: 'kd-tree'
 
 ##model config
 
 model:
-  input_scalar_size: 24
-  output_scalar_size: 64
+  input_scalar_size: 4
+  output_scalar_size: 48
   edge_feat_size: 1
   vector_size: 16
   n_message_gvps: 1
   n_update_gvps: 1
   n_convs: 2
-  dropout: 0.25
-  message_norm: 24
+  dropout: 0.2
+  message_norm: 0
   vector_gating: true
   xavier_init: true
 
 loss:
-  margin: 1.2
+  margin: 1.0
+  stab_loss : 0.05
 
 ##train config and hyperparameters
 
 train:
-  n_epochs: 100
-  batch_size: 64
+  n_epochs: 30
+  batch_size: 128
   n_workers: 6
 
   optimizer:
     type: 'Adam'
-    lr: 0.05
-    weight_decay: 0.00001
+    lr: 0.005
+    weight_decay: 0.00000001
   
   scheduler:
     type: "StepLR"
     params:
-      step_size: 20
-      gamma: 0.1
+      step_size: 5
+      gamma: 0.5
+    
+    # - type: 'ReduceLROnPlateau
+    #   params: 
+    #     factor: 0.1
+    #     patience: 10
+    #     threshold: 0.001
+    #     threshold_type: 'abs'
       
 #wandb sweep args: dropout, margin, lr, weight_decay, step_size, gamma, n_convs

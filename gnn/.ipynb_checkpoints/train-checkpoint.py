@@ -12,7 +12,7 @@ import numpy as np
 import dgl
 from dgl.dataloading import GraphDataLoader
 import torch
-from torch.optim import Adam, AdamW
+from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from torch_scatter import scatter_mean
 import torch.nn.functional as F
@@ -68,7 +68,7 @@ def get_args():
         parser.add_argument('--algorithm',required=False,default='bruteforce-blas',type=str)
     
         #model config
-        parser.add_argument('--input_scalar_size', required=False, default=24, type=int, help='Input scalar size')
+        parser.add_argument('--input_scalar_size', required=False, default=4, type=int, help='Input scalar size')
         parser.add_argument('--output_scalar_size', required=False, default=64, type=int, help='Output scalar size')
         parser.add_argument('--edge_feat_size', required=False, default=1, type=int, help='Edge feature size')
         parser.add_argument('--vector_size', required=False, default=16, type=int, help='Vector size')
@@ -76,13 +76,14 @@ def get_args():
         parser.add_argument('--n_update_gvps', required=False, default=1, type=int)
         parser.add_argument('--n_convs', required=False, default=3, type=int, help='Number of convolutions')
         parser.add_argument('--dropout', required=False, default=0.25, type=float, help='Dropout rate')
-        parser.add_argument('--message_norm', required=False, default=24, help='Message Norm')
+        parser.add_argument('--message_norm', required=False, default=0, help='Message Norm')
         parser.add_argument('--vector_gating', required=False, default=True, type=bool, help='Enable vector gating')
         parser.add_argument('--xavier_init', required=False, default=True, type=bool, help='Enable Xavier initialization')
     
     
         #loss margin and config
         parser.add_argument('--loss_margin',required=False,default=1.0,type=float)
+        parser.add_argument('--stab_loss',required=False,default=1.0,type=float)
     
         #train arguments
         parser.add_argument('--n_epochs', required=False, default=100, type=int, help='Number of epochs')
@@ -96,8 +97,15 @@ def get_args():
         
         #scheduler parameters
         parser.add_argument('--scheduler_type', required=False, default="StepLR", type=str, help='Scheduler type')
+        
         parser.add_argument('--step_size', required=False, default=20, type=int, help='Step size for StepLR scheduler')
         parser.add_argument('--gamma', required=False, default=0.1, type=float, help='Gamma for StepLR scheduler')
+
+        parser.add_argument('--factor', required=False, default=0.1, type=float, help='Factor for ReduceLROnPlateau')
+        parser.add_argument('--patience', required=False, default=10, type=int, help='Number of Epochs to wait for ReduceLR')
+        parser.add_argument('--threshold', required=False, default=0.001, type=float)
+        parser.add_argument('--threshold_type', required=False, default='abs', type=str)
+
     
         return parser.parse_args()
 
@@ -123,6 +131,7 @@ def main():
 
         #model params
         loss_margin = config['loss']['margin']
+        stab_loss = config['loss']['stab_loss']
         model_params = config['model']
         in_scalar_size = model_params['input_scalar_size']
         out_scalar_size = model_params['output_scalar_size']
@@ -139,11 +148,19 @@ def main():
         lr=opt_config['lr']
         weight_decay=opt_config['weight_decay']
 
-        sched_config = config['train']['scheduler']
-        scheduler_type = sched_config['type']
-        params = sched_config['params']
-        step_size=params['step_size']
-        gamma=params['gamma']
+        sched_type = config['train']['scheduler']
+        scheduler_type = sched_type['type']
+        sched_config = {}
+
+        if scheduler_type == 'StepLR':
+            sched_config['gamma'] = sched_type['params']['gamma']
+            sched_config['step_size'] = sched_type['params']['step_size'] 
+            
+        else:
+            sched_config['factor'] = sched_type['params']['factor']
+            sched_config['patience'] = sched_type['params']['patience']
+            sched_config['threshold'] = sched_type['params']['threshold']
+            sched_config['threshold_type'] = sched_type['params']['threshold_type']
 
         knn_k = config['graph']['threshold_k']
         algorithm = config['graph']['algorithm']
@@ -163,6 +180,7 @@ def main():
 
         #model params
         loss_margin = args.loss_margin
+        stab_loss = args.stab_loss
         in_scalar_size= args.input_scalar_size
         out_scalar_size= args.output_scalar_size
         vector_size= args.vector_size
@@ -178,8 +196,16 @@ def main():
         weight_decay= args.weight_decay
 
         scheduler_type = args.scheduler_type
-        step_size= args.step_size
-        gamma= args.gamma
+        sched_config = {}
+
+        if scheduler_type == 'StepLR':
+            sched_config['gamma'] = args.gamma
+            sched_config['step_size'] = args.step_size 
+        else:
+            sched_config['factor'] = args.factor
+            sched_config['patience'] = args.patience
+            sched_config['threshold'] = args.threshold
+            sched_config['threshold_type'] = args.threshold_type
 
         knn_k = args.knn_k
         algorithm = args.algorithm
@@ -197,9 +223,12 @@ def main():
         else:
             raise ValueError(f"Unsupported optimizer type: {opt_type}")
 
-    def get_scheduler(optimizer, scheduler_type, step_size, gamma):
+    def get_scheduler(optimizer, scheduler_config):
         if scheduler_type == "StepLR":
-            return StepLR(optimizer, step_size=step_size, gamma=gamma)
+            return StepLR(optimizer, step_size=scheduler_config['step_size'], gamma=scheduler_config['gamma'])
+        elif scheduler_type == 'ReduceLROnPlateau':
+            return ReduceLROnPlateau(optimizer, factor = scheduler_config['factor'], patience = scheduler_config['patience'],
+                                     threshold = scheduler_config['threshold'], threshold_mode = scheduler_config['threshold_type'])
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_type}")
         
@@ -219,16 +248,16 @@ def main():
         vector_size = vector_size,
         n_convs = n_convs,
         dropout = dropout,
-        message_norm = float(message_norm)
+        message_norm = float(message_norm) if type(message_norm) is not str else 0.0
     )
         
     model.to(device)
 
     optimizer = get_optimizer(model.parameters(), opt_type, lr, weight_decay)
-    scheduler = get_scheduler(optimizer, scheduler_type, step_size, gamma)
+    scheduler = get_scheduler(optimizer, sched_config)
 
     #wandb
-    wandb.init(project="graphpocket", config=config)
+    wandb.init(project="graphpocket", name="final_run_7", config=config)
 
     #model_params
     print("Created model, now reading pockets into graphs..")
@@ -241,7 +270,7 @@ def main():
 
     else:
         train_dataset, test_dataset = create_dataset(pos_list, neg_list, pocket_dir, seq_cluster_map, 
-                                                     knn_k, algorithm, fold_nr=0, split_type='random')
+                                                     knn_k, algorithm, fold_nr=0, split_type='seq')
         with open(os.path.join(pocket_dir, 'train_dataset.pkl'), 'wb') as f:
             pickle.dump(train_dataset, f)
         with open(os.path.join(pocket_dir, 'test_dataset.pkl'), 'wb') as f:
@@ -271,7 +300,7 @@ def main():
             output1 = model(graph1, batch_indx1)
             output2 = model(graph2, batch_indx2)
                 
-            loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin)
+            loss, pos_dist, neg_dist = con_loss(output1, output2, label, loss_margin, stab_loss)
     
             losses.append(loss.item())
             pos_dists.extend(pos_dist.cpu().numpy().tolist())
@@ -287,7 +316,7 @@ def main():
     #test func
     def test(epoch):
         model.eval()        
-        all_dists, all_labels = [], []
+        all_dists, all_labels, test_loss = [], [], []
 
         progress_bar = tqdm(enumerate(test_dataloader), total=len(test_dataloader), desc=f"Test Epoch: {epoch+1}")
 
@@ -306,6 +335,9 @@ def main():
                 all_dists.extend(dists.cpu().numpy())
                 all_labels.extend(label.cpu().numpy())
 
+                loss, _, _ = con_loss(output1, output2, label, loss_margin, stab_loss)
+                test_loss.append(loss.item())
+
 
         all_dists = np.array(all_dists)
         all_labels = np.array(all_labels)
@@ -313,10 +345,14 @@ def main():
         fpr, tpr, _ = roc_curve(1-all_labels, all_dists) #1-labels as higher distances is technically good for label 0 and roc wants probs
         roc_auc = auc(fpr, tpr)
 
-        return {'AUC' : roc_auc}
+        return {'AUC' : roc_auc, 'test_loss': np.mean(test_loss)}
 
     #epoch loop
 
+    patience = 15
+    bad_epochs = 0
+    best_auc = 0.0
+    
     for epoch in range(epochs):  
         print("starting training runs")
         train_metrics = train(epoch)
@@ -329,19 +365,29 @@ def main():
 
         test_metrics = test(epoch)
         wandb.log({'AUC of ROC Curve': test_metrics['AUC'],
+                   'test_loss': test_metrics['test_loss'],
                   'epoch': epoch+1})
-        print(f"Epoch {epoch+1}/{epochs}, Test AUC: {test_metrics['AUC']:.4f}")
+        print(f"Epoch {epoch+1}/{epochs}, Test AUC: {test_metrics['AUC']:.4f}, Test Loss: {test_metrics['test_loss']:.4f}")
 
         scheduler.step() 
 
         current_lr = scheduler.get_last_lr()
         print(f"Current Learning Rate: {current_lr}")
+
+        if test_metrics['AUC'] > best_auc:
+            best_auc = test_metrics['AUC']
+            torch.save(model.state_dict(), os.path.join(result_dir, f'best_model_final_7_epoch_{epoch}.pt'))
+        else:
+            bad_epochs += 1
+            if bad_epochs >= patience:
+                print("Early stopping. AUC hasn't improved in {} epochs.".format(patience))
+                break
   
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()},
-            os.path.join(result_dir, 'model.pth.tar'))
+            os.path.join(result_dir, f'model_final_run7_{epoch}.pth.tar'))
         print(f"Model saved at epoch {epoch+1}")
 
 if __name__=='__main__':
